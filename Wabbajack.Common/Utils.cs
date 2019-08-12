@@ -11,6 +11,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using VCDiff.Decoders;
+using VCDiff.Encoders;
+using VCDiff.Includes;
 
 namespace Wabbajack.Common
 {
@@ -273,6 +276,30 @@ namespace Wabbajack.Common
         {
             if (dict.TryGetValue(key, out V v)) return v;
             return default(V);
+        }
+
+
+        public static void CreateDiff(Stream oldData, Stream newData, Stream output)
+        {
+            VCCoder coder = new VCCoder(oldData, newData, output);
+            //ChunkEncoder.MinBlockSize = 2 << 9;
+            //BlockHash.BlockSize = 2 << 9;
+            var result = coder.Encode(interleaved: true);
+            if (result != VCDiffResult.SUCCESS)
+                throw new Exception("Could not create Binary Patch");
+        }
+
+        public static void ApplyDiff(Stream oldData, Stream patchData, Stream output)
+        {
+            var decoder = new VCDecoder(oldData, patchData, output);
+            var result = decoder.Start();
+            if (result != VCDiffResult.SUCCESS)
+                throw new Exception("Error patching file");
+
+            result = decoder.Decode(out long bytesWritten);
+
+            if (result != VCDiffResult.SUCCESS)
+                throw new Exception("Error patching file");
         }
 
     }

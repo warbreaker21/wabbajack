@@ -381,10 +381,9 @@ namespace Wabbajack
                 var ss = extracted[entry.FullPath];
                 using (var origin = new MemoryStream(ss))
                 using (var output = new MemoryStream())
+                using (var final = new MemoryStream(LoadDataForTo(entry.To, absolute_paths)))
                 {
-                    var a = origin.ReadAll();
-                    var b = LoadDataForTo(entry.To, absolute_paths);
-                    BSDiff.Create(a, b, output);
+                    Utils.CreateDiff(origin, final, output);
                     entry.Patch = output.ToArray().ToBase64();
                     Info($"Patch size {entry.Patch.Length} for {entry.To}");
                 }
@@ -449,7 +448,7 @@ namespace Wabbajack
                     Status($"Getting Nexus info for {found.Name}");
                     try
                     {
-                       // var link = NexusAPI.GetNexusDownloadLink((NexusMod)result, NexusKey);
+                       var link = NexusAPI.GetNexusDownloadLink((NexusMod)result, NexusKey);
                     }
                     catch (Exception ex)
                     {
@@ -563,6 +562,7 @@ namespace Wabbajack
                 IgnoreStartsWith("webcache\\"),
                 IgnoreStartsWith("overwrite\\"),
                 IgnoreEndsWith(".pyc"),
+                IgnoreEndsWith(".log"),
                 IgnoreOtherProfiles(),
                 IgnoreDisabledMods(),
                 IncludeThisProfile(),
@@ -574,11 +574,11 @@ namespace Wabbajack
                 IgnoreRegex(Consts.GameFolderFilesDir + "\\\\.*\\.bsa"),
                 IncludeModIniData(),
                 DirectMatch(),
+                DeconstructBSAs(),
                 IncludeTaggedFiles(),
                 IncludePatches(),
                 IncludeDummyESPs(),
 
-                DeconstructBSAs(),
 
                 // If we have no match at this point for a game folder file, skip them, we can't do anything about them
                 IgnoreGameFiles(),

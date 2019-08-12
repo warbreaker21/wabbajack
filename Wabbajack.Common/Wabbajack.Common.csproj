@@ -95,6 +95,10 @@
       <Project>{8aa97f58-5044-4bba-b8d9-a74b6947a660}</Project>
       <Name>SevenZipExtractor</Name>
     </ProjectReference>
+    <ProjectReference Include="..\VCDiff\VCDiff.csproj">
+      <Project>{4d676f4e-e66d-4a41-861f-600f0ffcd052}</Project>
+      <Name>VCDiff</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
