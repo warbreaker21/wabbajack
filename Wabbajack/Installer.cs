@@ -441,7 +441,7 @@ namespace Wabbajack
                 return File.ReadAllText(cache);
 
             Status("Hashing {0}", Path.GetFileName(e));
-            File.WriteAllText(cache, Utils.FileSHA256(e));
+            File.WriteAllText(cache, Utils.FileHash(e));
             return HashArchive(e);
 
         }

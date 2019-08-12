@@ -18,7 +18,7 @@ namespace Wabbajack.Common
             get
             {
                 if (_hash != null) return _hash;
-                _hash = AbsolutePath.FileSHA256();
+                _hash = AbsolutePath.FileHash();
                 return _hash;
             }
             set

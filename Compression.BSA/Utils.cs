@@ -1,5 +1,4 @@
-﻿using lz4.AnyCPU.loader;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -10,10 +9,6 @@ namespace Compression.BSA
     {
         private static Encoding Windows1251 = Encoding.GetEncoding(1251);
 
-        static Utils ()
-        {
-            LZ4Loader.DisableVCRuntimeDetection = true;
-        }
 
         public static string ReadStringLen(this BinaryReader rdr)
         {

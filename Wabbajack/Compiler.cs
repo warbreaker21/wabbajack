@@ -141,7 +141,7 @@ namespace Wabbajack
         }
 
 
-        private const int ARCHIVE_CONTENTS_VERSION = 1;
+        private const int ARCHIVE_CONTENTS_VERSION = 4;
         private IndexedArchive LoadArchive(string file)
         {
         TOP:
@@ -186,7 +186,7 @@ namespace Wabbajack
         private IndexedArchiveCache IndexArchive(string file)
         {
             Status("Indexing {0}", Path.GetFileName(file));
-            var streams = new Dictionary<string, (SHA256Managed, long)>();
+            var streams = new Dictionary<string, (HashingOutputStream, long)>();
             var inner_archives = new Dictionary<string, string>();
             FileExtractor.Extract(file, entry =>
             {
@@ -201,20 +201,20 @@ namespace Wabbajack
                 {
                     inner = Stream.Null;
                 }
-                var sha = new SHA256Managed();
-                var os = new CryptoStream(inner, sha, CryptoStreamMode.Write);
-                streams.Add(entry.Name, (sha, (long)entry.Size));
+                var hasher = Utils.HashingOutputStream();
+                var os = new SplittingStream(inner, false, hasher, false);
+                streams.Add(entry.Name, (hasher, (long)entry.Size));
                 return os;
             });
 
             var indexed = new IndexedArchiveCache();
             indexed.Version = ARCHIVE_CONTENTS_VERSION;
-            indexed.Hash = file.FileSHA256();
+            indexed.Hash = file.FileHash();
             indexed.Entries = streams.Select(entry =>
             {
                 return new IndexedEntry()
                 {
-                    Hash = entry.Value.Item1.Hash.ToBase64(),
+                    Hash = entry.Value.Item1.GetHash(),
                     Size = (long)entry.Value.Item2,
                     Path = entry.Key
                 };
@@ -725,7 +725,7 @@ namespace Wabbajack
         }
 
         /// <summary>
-        /// Given a BSA on disk, index it and return a dictionary of SHA256 -> filename
+        /// Given a BSA on disk, index it and return a dictionary of Hash -> filename
         /// </summary>
         /// <param name="absolutePath"></param>
         /// <returns></returns>
@@ -740,7 +740,7 @@ namespace Wabbajack
                     Status($"Hashing BSA: {absolutePath} - {entry.Path}");
 
                     var data = entry.GetData();
-                    results.Add((entry.Path, data.SHA256()));
+                    results.Add((entry.Path, data.Hash()));
                 });
             }
             return results;

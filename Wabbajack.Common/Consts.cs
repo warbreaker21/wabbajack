@@ -30,5 +30,7 @@ namespace Wabbajack.Common
         public static string WABBAJACK_INCLUDE = "WABBAJACK_INCLUDE";
 
         public static String AppName = "Wabbajack";
+
+        public const int HASH_CHUNK_SIZE = 1024 * 4;
     }
 }

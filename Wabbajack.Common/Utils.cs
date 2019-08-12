@@ -1,5 +1,6 @@
 ﻿using ICSharpCode.SharpZipLib.BZip2;
 using IniParser;
+using K4os.Hash.xxHash;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -16,30 +17,45 @@ namespace Wabbajack.Common
 {
     public static class Utils
     {
-
-      
+        
 
         /// <summary>
         /// MurMur3 hashes the file pointed to by this string
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static string FileSHA256(this string file)
+        public static string FileHash(this string file)
         {
-            var sha = new SHA256Managed();
-            using (var o = new CryptoStream(Stream.Null, sha, CryptoStreamMode.Write))
-            {
-                using (var i = File.OpenRead(file))
-                    i.CopyTo(o);
+            var hasher = new XXH64();
+
+            using (var i = File.OpenRead(file)) {
+                i.ReadChunked(Consts.HASH_CHUNK_SIZE, (data, from, size) => {
+                    hasher.Update(data, from, size);
+                });
             }
-            return sha.Hash.ToBase64();
+
+            return hasher.DigestBytes().ToBase64();
 
         }
 
-        public static string SHA256(this byte[] data)
+        public static string Hash(this byte[] data)
         {
-            return new SHA256Managed().ComputeHash(data).ToBase64();
+            var hasher = new XXH64();
 
+            using (var i = new MemoryStream(data))
+            {
+                i.ReadChunked(Consts.HASH_CHUNK_SIZE, (buff, from, size) => {
+                    hasher.Update(buff, from, size);
+                });
+            }
+
+            return hasher.DigestBytes().ToBase64();
+
+        }
+
+        public static HashingOutputStream HashingOutputStream()
+        {
+            return new HashingOutputStream();
         }
 
         /// <summary>
@@ -160,6 +176,57 @@ namespace Wabbajack.Common
             {
                 ins.CopyTo(ms);
                 return ms.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Copy streams in exact chunk sizes, or no more than one undersized chunk at the end.
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        /// <param name="chunk_size"></param>
+        public static void CopyChunked(this Stream from, Stream to, int chunk_size)
+        {
+            var buffer = new byte[chunk_size];
+            while (true)
+            {
+                int total_read = 0;
+
+                int read = from.Read(buffer, total_read, chunk_size - total_read);
+                if (read == 0)
+                {
+                    to.Write(buffer, 0, total_read);
+                    return;
+                }
+
+
+                total_read += read;
+                if (total_read == chunk_size)
+                {
+                    to.Write(buffer, 0, chunk_size);
+                }
+            }
+        }
+        public static void ReadChunked(this Stream from, int chunk_size, Action<byte[], int, int> ingest)
+        {
+            var buffer = new byte[chunk_size];
+            while (true)
+            {
+                int total_read = 0;
+
+                int read = from.Read(buffer, total_read, chunk_size - total_read);
+                if (read == 0)
+                {
+                    ingest(buffer, 0, total_read);
+                    return;
+                }
+
+
+                total_read += read;
+                if (total_read == chunk_size)
+                {
+                    ingest(buffer, 0, chunk_size);
+                }
             }
         }
 
