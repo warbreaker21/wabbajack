@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenQA.Selenium;
 using Wabbajack.Common;
 using Wabbajack.Downloaders;
 using Wabbajack.Validation;
@@ -156,6 +157,19 @@ namespace Wabbajack.Test
             converted.Download(new Archive { Name = "moddbtest.7z" }, filename);
 
             Assert.AreEqual("lUvpEjqxfyidBONSHcDy6EnZIPpAD2K4rkJ5ejCXc2k=", filename.FileSHA256());
+        }
+
+        [TestMethod]
+        public void RemotingBackendBasicUsage()
+        {
+            var backend = new RemotingBackend();
+            backend.Startup();
+
+            var driver = backend.GetDriver();
+            driver.Url = "https://www.github.com/wabbajack-tools/wabbajack";
+            var result = driver.FindElement(By.CssSelector("strong[itemprop=name]>a"));
+            Assert.AreEqual("wabbajack", result.Text);
+            backend.Shutdown();
         }
     }
 
