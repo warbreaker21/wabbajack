@@ -160,16 +160,46 @@ namespace Wabbajack.Test
         }
 
         [TestMethod]
+        public void MediaFireTests()
+        {
+            var ini = @"[General]
+                        directURL=http://www.mediafire.com/file/agiqzm1xwebczpx/WABBAJACK_TEST_FILE.txt/file";
+
+            var state = (AbstractDownloadState)DownloadDispatcher.ResolveArchive(ini.LoadIniString());
+
+            Assert.IsNotNull(state);
+
+            var converted = state.ViaJSON();
+            Assert.IsTrue(converted.Verify());
+            var filename = Guid.NewGuid().ToString();
+
+            Assert.IsTrue(converted.IsWhitelisted(new ServerWhitelist { AllowedPrefixes = new List<string> { "http://www.mediafire.com/file/agiqzm1xwebczpx/WABBAJACK_TEST_FILE.txt" } }));
+            Assert.IsFalse(converted.IsWhitelisted(new ServerWhitelist { AllowedPrefixes = new List<string>() }));
+
+            converted.Download(new Archive { Name = "mediafire.txt" }, filename);
+
+            Assert.AreEqual("Cheese for Everyone!", File.ReadAllText(filename));
+        }
+
+        [TestMethod]
         public void RemotingBackendBasicUsage()
         {
-            var backend = new RemotingBackend();
-            backend.Startup();
-
-            var driver = backend.GetDriver();
+            var driver = RemotingBackend.GetDriver();
             driver.Url = "https://www.github.com/wabbajack-tools/wabbajack";
             var result = driver.FindElement(By.CssSelector("strong[itemprop=name]>a"));
             Assert.AreEqual("wabbajack", result.Text);
-            backend.Shutdown();
+        }
+
+        [TestInitialize]
+        public void Init()
+        {
+            RemotingBackend.Startup();
+        }
+
+        [TestCleanup]
+        public void Shutdown()
+        {
+            RemotingBackend.Shutdown();
         }
     }
 

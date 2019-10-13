@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using Alphaleonis.Win32.Filesystem;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
@@ -17,7 +18,38 @@ namespace Wabbajack.Downloaders
 
         private DriverService _driverService;
 
-        public void Startup()
+        private static RemotingBackend _instance = null;
+
+        private static object _lockObject = new object();
+
+        public static IWebDriver GetDriver()
+        {
+            Startup();
+            return _instance.internalGetDriver();
+        }
+
+        public static void Startup()
+        {
+            lock (_lockObject)
+            {
+                if (_instance != null) return;
+                _instance = new RemotingBackend();
+                _instance.internalStartup();
+            }
+        }
+
+        public static void Shutdown()
+        {
+            lock (_lockObject)
+            {
+                if (_instance == null) return;
+                _instance.internalShutdown();
+                _instance = null;
+            }
+        }
+
+
+        private void internalStartup()
         {
             lock (this)
             {
@@ -40,7 +72,7 @@ namespace Wabbajack.Downloaders
             }
         }
 
-        public IWebDriver GetDriver()
+        private IWebDriver internalGetDriver()
         {
             switch (_driverService)
             {
@@ -71,7 +103,7 @@ namespace Wabbajack.Downloaders
             }
         }
 
-        public void Shutdown()
+        public void internalShutdown()
         {
             lock (this)
             {
