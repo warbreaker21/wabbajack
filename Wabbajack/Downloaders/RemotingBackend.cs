@@ -23,12 +23,19 @@ namespace Wabbajack.Downloaders
             {
                 if (_driverService != null) return;
                 Utils.Log("Starting Remoting backend");
-                ExtractIfNotExists("chromedriver.exe");
-                var dir = Directory.GetCurrentDirectory();
-                _driverService = ChromeDriverService.CreateDefaultService(dir, "chromedriver.exe");
+                var env_chrome_driver = Environment.GetEnvironmentVariable("ChromeWebDriver");
+                if (env_chrome_driver != null)
+                {
+                    _driverService = ChromeDriverService.CreateDefaultService(env_chrome_driver);
+                }
+                else
+                {
+                    ExtractIfNotExists("chromedriver.exe");
+                    var dir = Directory.GetCurrentDirectory();
+                    _driverService = ChromeDriverService.CreateDefaultService(dir, "chromedriver.exe");
+                }
                 _driverService.HideCommandPromptWindow = true;
                 _driverService.Start();
-
                 ChildProcessTracker.AddProcess(Process.GetProcesses().Single(p => p.Id == _driverService.ProcessId));
             }
         }
