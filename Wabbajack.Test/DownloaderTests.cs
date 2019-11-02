@@ -221,6 +221,30 @@ namespace Wabbajack.Test
 
             Assert.AreEqual("2lZt+1h6wxM=", filename.FileHash());
         }
+
+        [TestMethod]
+        public void LoversLabTests()
+        {
+            var site_url = "https://www.loverslab.com/files/file/10739-animation-loading-fix/?do=download";
+            var ini = @"[General]
+                        directURL=https://www.loverslab.com/files/file/10739-animation-loading-fix/?do=download
+                        modName=Animation Loading Fix.zip";
+
+            var state = (AbstractDownloadState)DownloadDispatcher.ResolveArchive(ini.LoadIniString());
+
+            Assert.IsNotNull(state);
+
+            var converted = state.ViaJSON();
+            Assert.IsTrue(converted.Verify());
+
+            var filename = Guid.NewGuid().ToString();
+
+            Assert.IsTrue(converted.IsWhitelisted(new ServerWhitelist { AllowedPrefixes = new List<string>() }));
+
+            converted.Download(new Archive { Name = "Animation Loading Fix.zip" }, filename);
+
+            Assert.AreEqual("2lZt+1h6wxM=", filename.FileHash());
+        }
     }
 
 

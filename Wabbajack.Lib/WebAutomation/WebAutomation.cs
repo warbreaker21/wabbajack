@@ -93,5 +93,23 @@ namespace Wabbajack.Lib.WebAutomation
         {
             _window.Dispatcher.Invoke(_window.Close);
         }
+
+        public Task<string> Eval(string script)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            _window.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var result = _window.WebView.InvokeScript("eval", script);
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+            return tcs.Task;
+        }
     }
 }

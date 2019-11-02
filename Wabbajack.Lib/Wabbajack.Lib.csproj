@@ -155,6 +155,7 @@
     <Compile Include="Downloaders\HTTPDownloader.cs" />
     <Compile Include="Downloaders\IDownloader.cs" />
     <Compile Include="Downloaders\IUrlDownloader.cs" />
+    <Compile Include="Downloaders\LoversLabDownloader.cs" />
     <Compile Include="Downloaders\ManualDownloader.cs" />
     <Compile Include="Downloaders\MediaFireDownloader.cs" />
     <Compile Include="Downloaders\MEGADownloader.cs" />

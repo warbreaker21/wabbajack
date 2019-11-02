@@ -17,6 +17,7 @@ namespace Wabbajack.Lib.Downloaders
             new ModDBDownloader(),
             new NexusDownloader(),
             new MediaFireDownloader(),
+            new LoversLabDownloader(),
             new ManualDownloader(),
             new HTTPDownloader()
         };
