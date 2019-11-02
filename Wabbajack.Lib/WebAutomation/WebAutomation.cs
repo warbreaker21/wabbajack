@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using Microsoft.WindowsAPICodePack.Shell.PropertySystem;
 
 namespace Wabbajack.Lib.WebAutomation
 {
@@ -50,9 +53,9 @@ namespace Wabbajack.Lib.WebAutomation
             t.Start();
         }
 
-        public static async Task<Driver> Create()
+        public static async Task<Driver> Create(DisplayMode displayMode = DisplayMode.Hidden)
         {
-            var driver = new Driver();
+            var driver = new Driver(displayMode);
             driver._window = await driver._windowTask;
             driver._ctx = (WebAutomationWindowViewModel) driver._window.DataContext;
             return driver;
@@ -110,6 +113,49 @@ namespace Wabbajack.Lib.WebAutomation
                 }
             });
             return tcs.Task;
+        }
+
+
+        public async Task<HttpClient> GetClient()
+        {
+            var cookies = await Eval("document.cookie");
+            var location = await GetLocation();
+            var container = ParseCookies(location, cookies);
+            var handler = new HttpClientHandler {CookieContainer = container};
+            var client = new HttpClient(handler);
+            client.DefaultRequestHeaders.Referrer = location;
+            return client;
+        }
+
+        private CookieContainer ParseCookies(Uri location, string input)
+        {
+            // From https://stackoverflow.com/questions/28979882/parsing-cookies
+            var urib = new UriBuilder();
+            urib.Host = location.Host;
+            urib.Scheme = location.Scheme;
+            var uri = urib.Uri;
+            
+            var container = new CookieContainer();
+            var values = input.TrimEnd(';').Split(';');
+            foreach (var parts in values.Select(c => c.Split(new[] { '=' }, 2)))
+            {
+                var cookieName = parts[0].Trim();
+                string cookieValue;
+
+                if (parts.Length == 1)
+                {
+                    //Cookie attribute
+                    cookieValue = string.Empty;
+                }
+                else
+                {
+                    cookieValue = parts[1];
+                }
+
+                container.Add(uri, new Cookie(cookieName, cookieValue));
+            }
+
+            return container;
         }
     }
 }

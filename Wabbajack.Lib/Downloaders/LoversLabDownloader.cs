@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI;
 using Wabbajack.Common;
@@ -53,12 +55,11 @@ namespace Wabbajack.Lib.Downloaders
 
             public override void Download(Archive a, string destination)
             {
-                var url = ResolveDownloadUrl().Result;
-                var state = new HTTPDownloader.State {Url = url};
+                var state = ResolveDownloadUrl().Result;
                 state.Download(destination);
             }
 
-            private async Task<string> ResolveDownloadUrl()
+            private async Task<HTTPDownloader.State> ResolveDownloadUrl()
             {
                 using (var driver = await Driver.Create())
                 {
@@ -66,13 +67,16 @@ namespace Wabbajack.Lib.Downloaders
                     var result = await driver.Eval(
                         "var arr=[]; document.querySelectorAll(\".ipsDataItem\").forEach(i => arr.push([i.querySelector(\"span\").innerText, i.querySelector(\"a\").href])); JSON.stringify(arr)");
                     var list = result.FromJSONString<List<List<string>>>();
-                    return list.FirstOrDefault(a => a[0] == ModName)?[1];
+                    var client = await driver.GetClient();
+                    var url = list.FirstOrDefault(a => a[0] == ModName)?[1];
+                    await Task.Delay(10000);
+                    return new HTTPDownloader.State { Url = url, Client = client };
                 }
             }
 
             public override bool Verify()
             {
-                return ResolveDownloadUrl().Result != null;
+                return ResolveDownloadUrl().Result.Verify();
             }
 
             public override IDownloader GetDownloader()
