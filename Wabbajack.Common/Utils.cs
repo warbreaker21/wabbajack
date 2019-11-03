@@ -124,6 +124,20 @@ namespace Wabbajack.Common
             }
         }
 
+        public static async Task<string> FileHashAsync(this string file)
+        {
+            var hash = new xxHashConfig();
+            hash.HashSizeInBits = 64;
+            hash.Seed = 0x42;
+            using (var fs = File.OpenRead(file))
+            {
+                var config = new xxHashConfig();
+                config.HashSizeInBits = 64;
+                var value = await xxHashFactory.Instance.Create(config).ComputeHashAsync(fs);
+                return value.AsBase64String();
+            }
+        }
+
         public static void CopyToWithStatus(this Stream istream, long maxSize, Stream ostream, string status)
         {
             var buffer = new byte[1024 * 64];
@@ -432,6 +446,17 @@ namespace Wabbajack.Common
                 f(i);
                 return false;
             });
+        }
+
+        public static Task<TR[]> PMapAsync<TI, TR>(this IEnumerable<TI> coll, Func<TI, TR> f)
+        { 
+            return Task.WhenAll(coll.Select(itm =>
+            {
+                var tsk = new Task<TR>(() => f(itm));
+                tsk.Start();
+                return tsk;
+            }));
+
         }
 
         public static void DoProgress<T>(this IEnumerable<T> coll, string msg, Action<T> f)
