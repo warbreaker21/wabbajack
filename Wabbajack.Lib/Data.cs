@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using Ceras;
 using Compression.BSA;
-using VFS;
 using Wabbajack.Common;
 using Wabbajack.Lib.Downloaders;
+using Wabbajack.VirtualFileSystem;
 
 namespace Wabbajack.Lib
 {
@@ -39,6 +39,11 @@ namespace Wabbajack.Lib
         ///     Archives required by this modlist
         /// </summary>
         public List<Archive> Archives;
+
+        /// <summary>
+        /// VFS information about the files we know will exist on the installer's system
+        /// </summary>
+        public List<PortableFile> PortableFiles;
 
         /// <summary>
         /// The Mod Manager used to create the modlist

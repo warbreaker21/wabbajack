@@ -133,6 +133,18 @@ namespace Wabbajack.Common.CSP
 
         }
 
+        public static IReadPort<TOut> UnorderedPipelineAsync<TIn, TOut>(
+            this IReadPort<TIn> from,
+            Func<TIn, Task<TOut>> f,
+            bool propagateClose = true)
+        {
+            var parallelism = Environment.ProcessorCount;
+            var to = Channel.Create<TOut>(parallelism * 2);
+            var pipeline = from.UnorderedPipeline(parallelism, to, f);
+            return to;
+
+        }
+
         public static IReadPort<TOut> UnorderedPipelineSync<TIn, TOut>(
             this IReadPort<TIn> from,
             Func<TIn, TOut> f,
@@ -210,6 +222,25 @@ namespace Wabbajack.Common.CSP
                 to.Close();
             }
 
+        }
+
+        public static Task<List<TR>> PMapAsync<T, TR>(this IEnumerable<T> coll, Func<T, Task<TR>> f)
+        {
+            return coll.ToChannel().UnorderedPipelineAsync(f).TakeAll();
+        }
+
+        public static Task<List<TR>> PMapSync<T, TR>(this IEnumerable<T> coll, Func<T, TR> f)
+        {
+            return coll.ToChannel().UnorderedPipelineSync(f).TakeAll();
+        }
+
+        public static Task PMapSync<T>(this IEnumerable<T> coll, Action<T> f)
+        {
+            return coll.ToChannel().UnorderedPipelineSync(i =>
+            {
+                f(i);
+                return i;
+            }).TakeAll();
         }
     }
 }

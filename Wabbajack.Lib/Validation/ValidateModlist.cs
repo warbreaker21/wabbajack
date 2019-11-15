@@ -3,7 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Wabbajack.Common;
+using Wabbajack.Common.CSP;
 using Wabbajack.Lib.Downloaders;
 using Path = Alphaleonis.Win32.Filesystem.Path;
 
@@ -47,16 +49,16 @@ namespace Wabbajack.Lib.Validation
 
         }
 
-        public static void RunValidation(ModList modlist)
+        public static async Task RunValidation(ModList modlist)
         {
             var validator = new ValidateModlist();
 
             validator.LoadListsFromGithub();
 
             Utils.Log("Running validation checks");
-            var errors = validator.Validate(modlist);
+            var errors = await validator.Validate(modlist);
             errors.Do(e => Utils.Log(e));
-            if (errors.Count() > 0)
+            if (errors.Any())
             {
                 Utils.Log($"{errors.Count()} validation errors found, cannot continue.");
                 throw new Exception($"{errors.Count()} validation errors found, cannot continue.");
@@ -95,18 +97,18 @@ namespace Wabbajack.Lib.Validation
             };
         }
 
-        public IEnumerable<string> Validate(ModList modlist)
+        public async Task<IEnumerable<string>> Validate(ModList modlist)
         {
             ConcurrentStack<string> ValidationErrors = new ConcurrentStack<string>();
             
-            var nexus_mod_permissions = modlist.Archives
+            var nexus_mod_permissions = (await modlist.Archives
                 .Where(a => a.State is NexusDownloader.State)
-                .PMap(a => (a.Hash, FilePermissions((NexusDownloader.State)a.State), a))
+                .PMapSync(a => (a.Hash, FilePermissions((NexusDownloader.State)a.State), a)))
                 .ToDictionary(a => a.Hash, a => new { permissions = a.Item2, archive = a.a });
 
-            modlist.Directives
+            await modlist.Directives
                 .OfType<PatchedFromArchive>()
-                .PMap(p =>
+                .PMapSync(p =>
                 {
                     if (nexus_mod_permissions.TryGetValue(p.ArchiveHashPath[0], out var archive))
                     {
@@ -121,11 +123,13 @@ namespace Wabbajack.Lib.Validation
                             ValidationErrors.Push($"{p.To} from {url} is set to disallow asset ESP modification");
                         }
                     }
+
+                    return p;
                 });
 
-            modlist.Directives
+            await modlist.Directives
                 .OfType<FromArchive>()
-                .PMap(p =>
+                .PMapSync(p =>
                 {
                     if (nexus_mod_permissions.TryGetValue(p.ArchiveHashPath[0], out var archive))
                     {

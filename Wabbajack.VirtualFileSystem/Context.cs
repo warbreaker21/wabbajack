@@ -141,7 +141,7 @@ namespace Wabbajack.VirtualFileSystem
             }
         }
 
-        public Action Stage(IEnumerable<VirtualFile> files)
+        public async Task<Action> Stage(IEnumerable<VirtualFile> files)
         {
             var grouped = files.SelectMany(f => f.FilesInFullPath)
                 .Distinct()
@@ -199,6 +199,26 @@ namespace Wabbajack.VirtualFileSystem
                 Index = newIndex;
             }
         }
+
+        public async Task<DisposableFileList> StageWith(IEnumerable<VirtualFile> files)
+        {
+            return new DisposableFileList(await Stage(files), files);
+        }
+    }
+
+    public class DisposableFileList : List<VirtualFile>, IDisposable
+    {
+        private Action _unstage;
+
+        public DisposableFileList(Action unstage, IEnumerable<VirtualFile> contents) : base(contents)
+        {
+            _unstage = unstage;
+        }
+
+        public void Dispose()
+        {
+            _unstage();
+        }
     }
 
     public class IndexRoot
@@ -208,12 +228,14 @@ namespace Wabbajack.VirtualFileSystem
         public IndexRoot(ImmutableList<VirtualFile> aFiles,
             ImmutableDictionary<string, VirtualFile> byFullPath,
             ImmutableDictionary<string, ImmutableStack<VirtualFile>> byHash,
-            ImmutableDictionary<string, VirtualFile> byRoot)
+            ImmutableDictionary<string, VirtualFile> byRoot,
+            ImmutableDictionary<string, ImmutableStack<VirtualFile>> byName)
         {
             AllFiles = aFiles;
             ByFullPath = byFullPath;
             ByHash = byHash;
             ByRootPath = byRoot;
+            ByName = byName;
         }
 
         public IndexRoot()
@@ -222,12 +244,22 @@ namespace Wabbajack.VirtualFileSystem
             ByFullPath = ImmutableDictionary<string, VirtualFile>.Empty;
             ByHash = ImmutableDictionary<string, ImmutableStack<VirtualFile>>.Empty;
             ByRootPath = ImmutableDictionary<string, VirtualFile>.Empty;
+            ByName = ImmutableDictionary<string, ImmutableStack<VirtualFile>>.Empty;
         }
 
         public ImmutableList<VirtualFile> AllFiles { get; }
         public ImmutableDictionary<string, VirtualFile> ByFullPath { get; }
+        public ImmutableDictionary<string, ImmutableStack<VirtualFile>> ByName { get; }
         public ImmutableDictionary<string, ImmutableStack<VirtualFile>> ByHash { get; }
         public ImmutableDictionary<string, VirtualFile> ByRootPath { get; }
+
+        public VirtualFile ByArchiveHashPath(string[] path)
+        {
+            var file = ByHash[path.First()].First(f => f.Parent == null);
+            for (var idx = 1; idx < path.Length; idx += 1)
+                file = ByName[path[idx]].First(f => f.Parent == file);
+            return file;
+        }
 
         public async Task<IndexRoot> Integrate(List<VirtualFile> files)
         {
@@ -241,12 +273,17 @@ namespace Wabbajack.VirtualFileSystem
                 allFiles.SelectMany(f => f.ThisAndAllChildren)
                     .ToGroupedImmutableDictionary(f => f.Hash));
 
+            var byName = Task.Run(() =>
+                allFiles.SelectMany(f => f.ThisAndAllChildren)
+                    .ToGroupedImmutableDictionary(f => f.Name));
+
             var byRootPath = Task.Run(() => allFiles.ToImmutableDictionary(f => f.Name));
 
             return new IndexRoot(allFiles,
                 await byFullPath,
                 await byHash,
-                await byRootPath);
+                await byRootPath,
+                await byName);
         }
     }
 

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
-using VFS;
 using Wabbajack.Common;
 using Wabbajack.Lib;
 using File = Alphaleonis.Win32.Filesystem.File;
@@ -58,7 +58,7 @@ namespace Wabbajack.Test
 
 
         [TestMethod]
-        public void CleanedESMTest()
+        public async Task CleanedESMTest()
         {
 
             var profile = utils.AddProfile();
@@ -74,7 +74,7 @@ namespace Wabbajack.Test
 
             utils.VerifyInstalledFile(mod, @"Update.esm");
 
-            var compiler = ConfigureAndRunCompiler(profile);
+            var compiler = await ConfigureAndRunCompiler(profile);
 
             // Update the file and verify that it throws an error.
             utils.GenerateRandomFileData(game_file, 20);
@@ -85,7 +85,7 @@ namespace Wabbajack.Test
         }
 
         [TestMethod]
-        public void UnmodifiedInlinedFilesArePulledFromArchives()
+        public async Task UnmodifiedInlinedFilesArePulledFromArchives()
         {
             var profile = utils.AddProfile();
             var mod = utils.AddMod();
@@ -95,15 +95,15 @@ namespace Wabbajack.Test
             utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/baz/biz.pex", File.ReadAllBytes(ini) } });
 
-            var modlist = CompileAndInstall(profile);
-            var directive = modlist.Directives.Where(m => m.To == $"mods\\{mod}\\foo.ini").FirstOrDefault();
+            var modlist = await CompileAndInstall(profile);
+            var directive = modlist.Directives.FirstOrDefault(m => m.To == $"mods\\{mod}\\foo.ini");
 
             Assert.IsNotNull(directive);
             Assert.IsInstanceOfType(directive, typeof(FromArchive));
         }
 
         [TestMethod]
-        public void ModifiedIniFilesArePatchedAgainstFileWithSameName()
+        public async Task ModifiedIniFilesArePatchedAgainstFileWithSameName()
         {
             var profile = utils.AddProfile();
             var mod = utils.AddMod();
@@ -117,8 +117,8 @@ namespace Wabbajack.Test
             // Modify after creating mod archive in the downloads folder
             File.WriteAllText(ini, "Wabbajack, Wabbajack, Wabbajack!");
 
-            var modlist = CompileAndInstall(profile);
-            var directive = modlist.Directives.Where(m => m.To == $"mods\\{mod}\\foo.ini").FirstOrDefault();
+            var modlist = await CompileAndInstall(profile);
+            var directive = modlist.Directives.FirstOrDefault(m => m.To == $"mods\\{mod}\\foo.ini");
 
             Assert.IsNotNull(directive);
             Assert.IsInstanceOfType(directive, typeof(PatchedFromArchive));

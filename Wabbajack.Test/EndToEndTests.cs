@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Alphaleonis.Win32.Filesystem;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using VFS;
 using Wabbajack.Common;
 using Wabbajack.Lib;
 using Wabbajack.Lib.Downloaders;
@@ -38,7 +37,7 @@ namespace Wabbajack.Test
         }
 
         [TestMethod]
-        public void CreateModlist()
+        public async Task CreateModlist()
         {
             var profile = utils.AddProfile("Default");
             var mod = utils.AddMod();
@@ -66,13 +65,11 @@ namespace Wabbajack.Test
             if (Directory.Exists(loot_folder))
                 Directory.Delete(loot_folder, true);
 
-            VirtualFileSystem.Reconfigure(utils.TestFolder);
             var compiler = new Compiler(utils.InstallFolder);
             compiler.MO2DownloadsFolder = Path.Combine(utils.DownloadsFolder);
-            compiler.VFS.Reset();
             compiler.MO2Profile = profile;
             compiler.ShowReportWhenFinished = false;
-            Assert.IsTrue(compiler.Compile());
+            Assert.IsTrue(await compiler.Compile());
 
         }
 
@@ -135,30 +132,28 @@ namespace Wabbajack.Test
             File.WriteAllText(dest + ".meta", ini);
         }
 
-        private ModList CompileAndInstall(string profile)
+        private async Task<ModList> CompileAndInstall(string profile)
         {
-            var compiler = ConfigureAndRunCompiler(profile);
-            Install(compiler);
+            var compiler = await ConfigureAndRunCompiler(profile);
+            await Install(compiler);
             return compiler.ModList;
         }
 
-        private void Install(Compiler compiler)
+        private async Task Install(Compiler compiler)
         {
             var modlist = Installer.LoadFromFile(compiler.ModListOutputFile);
             var installer = new Installer(compiler.ModListOutputFile, modlist, utils.InstallFolder);
             installer.DownloadFolder = utils.DownloadsFolder;
             installer.GameFolder = utils.GameFolder;
-            installer.Install();
+            await installer.Install();
         }
 
-        private Compiler ConfigureAndRunCompiler(string profile)
+        private async Task<Compiler> ConfigureAndRunCompiler(string profile)
         {
-            VirtualFileSystem.Reconfigure(utils.TestFolder);
             var compiler = new Compiler(utils.MO2Folder);
-            compiler.VFS.Reset();
             compiler.MO2Profile = profile;
             compiler.ShowReportWhenFinished = false;
-            Assert.IsTrue(compiler.Compile());
+            Assert.IsTrue(await compiler.Compile());
             return compiler;
         }
     }

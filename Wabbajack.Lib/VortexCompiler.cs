@@ -5,13 +5,15 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.WindowsAPICodePack.Shell;
-using VFS;
 using Wabbajack.Common;
+using Wabbajack.Common.CSP;
 using Wabbajack.Lib.CompilationSteps;
 using Wabbajack.Lib.Downloaders;
 using Wabbajack.Lib.ModListRegistry;
 using Wabbajack.Lib.NexusApi;
+using Wabbajack.VirtualFileSystem;
 using File = Alphaleonis.Win32.Filesystem.File;
 
 namespace Wabbajack.Lib
@@ -56,12 +58,9 @@ namespace Wabbajack.Lib
             // TODO: add custom modlist name
             ModListOutputFile = $"VORTEX_TEST_MODLIST{ExtensionManager.Extension}";
 
-            VFS = VirtualFileSystem.VFS;
-
             SelectedArchives = new List<Archive>();
             AllFiles = new List<RawSourceFile>();
-            IndexedArchives = new List<IndexedArchive>();
-            IndexedFiles = new Dictionary<string, IEnumerable<VirtualFile>>();
+;
         }
 
         public override void Info(string msg)
@@ -94,24 +93,23 @@ namespace Wabbajack.Lib
             return id;
         }
 
-        public override bool Compile()
+        public override async Task<bool> Compile()
         {
-            VirtualFileSystem.Clean();
             Info($"Starting Vortex compilation for {GameName} at {GamePath} with staging folder at {StagingFolder} and downloads folder at  {DownloadsFolder}.");
 
             Info("Starting pre-compilation steps");
             CreateMetaFiles();
 
             Info($"Indexing {StagingFolder}");
-            VFS.AddRoot(StagingFolder);
+            await VFS.AddRoot(StagingFolder);
 
             Info($"Indexing {GamePath}");
-            VFS.AddRoot(GamePath);
+            await VFS.AddRoot(GamePath);
 
             Info($"Indexing {DownloadsFolder}");
-            VFS.AddRoot(DownloadsFolder);
+            await VFS.AddRoot(DownloadsFolder);
 
-            AddExternalFolder();
+            await AddExternalFolder();
 
             Info("Cleaning output folder");
             if (Directory.Exists(ModListOutputFolder)) Directory.Delete(ModListOutputFolder, true);
@@ -119,17 +117,17 @@ namespace Wabbajack.Lib
             
             IEnumerable<RawSourceFile> vortexStagingFiles = Directory.EnumerateFiles(StagingFolder, "*", SearchOption.AllDirectories)
                 .Where(p => p.FileExists() && p != "__vortex_staging_folder")
-                .Select(p => new RawSourceFile(VFS.Lookup(p))
+                .Select(p => new RawSourceFile(VFS.Index.ByRootPath[p])
                     {Path = p.RelativeTo(StagingFolder)});
             
             IEnumerable<RawSourceFile> vortexDownloads = Directory.EnumerateFiles(DownloadsFolder, "*", SearchOption.AllDirectories)
                 .Where(p => p.FileExists())
-                .Select(p => new RawSourceFile(VFS.Lookup(p))
+                .Select(p => new RawSourceFile(VFS.Index.ByRootPath[p])
                     {Path = p.RelativeTo(DownloadsFolder)});
 
             IEnumerable<RawSourceFile> gameFiles = Directory.EnumerateFiles(GamePath, "*", SearchOption.AllDirectories)
                 .Where(p => p.FileExists())
-                .Select(p => new RawSourceFile(VFS.Lookup(p))
+                .Select(p => new RawSourceFile(VFS.Index.ByRootPath[p])
                     { Path = Path.Combine(Consts.GameFolderFilesDir, p.RelativeTo(GamePath)) });
 
             Info("Indexing Archives");
@@ -137,7 +135,7 @@ namespace Wabbajack.Lib
                 .Where(f => File.Exists(f+".meta"))
                 .Select(f => new IndexedArchive
                 {
-                    File = VFS.Lookup(f),
+                    File = VFS.Index.ByRootPath[f],
                     Name = Path.GetFileName(f),
                     IniData = (f+".meta").LoadIniFile(),
                     Meta = File.ReadAllText(f+".meta")
@@ -145,13 +143,11 @@ namespace Wabbajack.Lib
                 .ToList();
 
             Info("Indexing Files");
-            IDictionary<VirtualFile, IEnumerable<VirtualFile>> grouped = VFS.GroupedByArchive();
-            IndexedFiles = IndexedArchives.Select(f => grouped.TryGetValue(f.File, out var result) ? result : new List<VirtualFile>())
-                .SelectMany(fs => fs)
-                .Concat(IndexedArchives.Select(f => f.File))
-                .OrderByDescending(f => f.TopLevelArchive.LastModified)
+            IndexedFiles = IndexedArchives.SelectMany(f => f.File.ThisAndAllChildren)
+                .OrderByDescending(f => f.FilesInFullPath.First().LastModified)
                 .GroupBy(f => f.Hash)
                 .ToDictionary(f => f.Key, f => f.AsEnumerable());
+
 
             Info("Searching for mod files");
             AllFiles = vortexStagingFiles.Concat(vortexDownloads)
@@ -178,7 +174,7 @@ namespace Wabbajack.Lib
             IEnumerable<ICompilationStep> stack = MakeStack();
 
             Info("Running Compilation Stack");
-            List<Directive> results = AllFiles.PMap(f => RunStack(stack.Where(s => s != null), f)).ToList();
+            List<Directive> results = await AllFiles.PMapSync(f => RunStack(stack.Where(s => s != null), f));
 
             IEnumerable<NoMatch> noMatch = results.OfType<NoMatch>().ToList();
             Info($"No match for {noMatch.Count()} files");
@@ -209,7 +205,7 @@ namespace Wabbajack.Lib
             }
             */
 
-            GatherArchives();
+            await GatherArchives();
 
             ModList = new ModList
             {
@@ -228,17 +224,17 @@ namespace Wabbajack.Lib
         /// <summary>
         /// Some have mods outside their game folder located
         /// </summary>
-        private void AddExternalFolder()
+        private async Task AddExternalFolder()
         {
             var currentGame = GameRegistry.Games[Game];
             if (currentGame.AdditionalFolders == null || currentGame.AdditionalFolders.Count == 0) return;
-            currentGame.AdditionalFolders.Do(f =>
+            foreach (var f in currentGame.AdditionalFolders)
             {
                 var path = f.Replace("%documents%", KnownFolders.Documents.Path);
                 if (!Directory.Exists(path)) return;
                 Info($"Indexing {path}");
-                VFS.AddRoot(path);
-            });
+                await VFS.AddRoot(path);
+            }
         }
 
         private void ExportModList()
@@ -348,7 +344,7 @@ namespace Wabbajack.Lib
                 });
         }
 
-        private void GatherArchives()
+        private async Task GatherArchives()
         {
             Info("Building a list of archives based on the files required");
 
@@ -360,7 +356,7 @@ namespace Wabbajack.Lib
                 .GroupBy(f => f.File.Hash)
                 .ToDictionary(f => f.Key, f => f.First());
 
-            SelectedArchives = shas.PMap(sha => ResolveArchive(sha, archives));
+            SelectedArchives = await shas.PMapSync(sha => ResolveArchive(sha, archives));
         }
 
         private Archive ResolveArchive(string sha, IDictionary<string, IndexedArchive> archives)

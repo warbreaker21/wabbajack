@@ -98,6 +98,7 @@ namespace Wabbajack.VirtualFileSystem
             Children.SelectMany(child => child.ThisAndAllChildren).Append(this);
 
 
+        private IEnumerable<VirtualFile> _filesInFullPath;
         /// <summary>
         ///     Returns all the virtual files in the path to this file, starting from the root file.
         /// </summary>
@@ -105,15 +106,20 @@ namespace Wabbajack.VirtualFileSystem
         {
             get
             {
-                var stack = ImmutableStack<VirtualFile>.Empty;
-                var cur = this;
-                while (cur != null)
+                if (_filesInFullPath == null)
                 {
-                    stack = stack.Push(cur);
-                    cur = cur.Parent;
+                    var stack = ImmutableStack<VirtualFile>.Empty;
+                    var cur = this;
+                    while (cur != null)
+                    {
+                        stack = stack.Push(cur);
+                        cur = cur.Parent;
+                    }
+
+                    _filesInFullPath = stack;
                 }
 
-                return stack;
+                return _filesInFullPath;
             }
         }
 
@@ -229,6 +235,21 @@ namespace Wabbajack.VirtualFileSystem
             if (state.TryGetValue(portableFile.Hash, out var children))
                 vf.Children = children.Select(child => CreateFromPortable(context, vf, state, child)).ToImmutableList();
             return vf;
+        }
+
+        public string[] MakeRelativePaths()
+        {
+            var path = new string[NestingFactor];
+            path[0] = FilesInFullPath.First().Hash;
+
+            var idx = 1;
+            foreach (var cur in FilesInFullPath.Skip(1))
+            {
+                path[idx] = cur.Name;
+                idx++;
+            }
+
+            return path;
         }
     }
 

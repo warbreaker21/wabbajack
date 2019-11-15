@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using VFS;
 using Wabbajack.Common;
 using Wabbajack.Lib.CompilationSteps;
+using Wabbajack.VirtualFileSystem;
 
 namespace Wabbajack.Lib
 {
@@ -22,9 +22,9 @@ namespace Wabbajack.Lib
         public List<Directive> InstallDirectives;
         public List<RawSourceFile> AllFiles;
         public ModList ModList;
-        public VirtualFileSystem VFS;
-        public List<IndexedArchive> IndexedArchives;
-        public Dictionary<string, IEnumerable<VirtualFile>> IndexedFiles;
+        public Context VFS = new Context();
+        public List<IndexedArchive> IndexedArchives = new List<IndexedArchive>();
+        public Dictionary<string, IEnumerable<VirtualFile>> IndexedFiles = new Dictionary<string, IEnumerable<VirtualFile>>();
 
         public abstract void Info(string msg);
         public abstract void Status(string msg);
@@ -33,7 +33,7 @@ namespace Wabbajack.Lib
         internal abstract string IncludeFile(byte[] data);
         internal abstract string IncludeFile(string data);
 
-        public abstract bool Compile();
+        public abstract Task<bool> Compile();
 
         public abstract Directive RunStack(IEnumerable<ICompilationStep> stack, RawSourceFile source);
         public abstract IEnumerable<ICompilationStep> GetStack();

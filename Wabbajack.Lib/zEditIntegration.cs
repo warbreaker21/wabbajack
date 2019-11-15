@@ -3,8 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Wabbajack.Common;
+using Wabbajack.Common.CSP;
 using Wabbajack.Lib.CompilationSteps;
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
@@ -93,7 +95,7 @@ namespace Wabbajack.Lib
                     return new SourcePatch
                     {
                         RelativePath = abs_path.RelativeTo(_mo2Compiler.MO2Folder),
-                        Hash = _compiler.VFS[abs_path].Hash
+                        Hash = _compiler.VFS.Index.ByRootPath[abs_path].Hash
                     };
                 }).ToList();
 
@@ -160,22 +162,23 @@ namespace Wabbajack.Lib
             }
         }
 
-        public static void GenerateMerges(Installer installer)
+        public static async Task GenerateMerges(Installer installer)
         {
-            installer.ModList
+            await installer.ModList
                 .Directives
                 .OfType<MergedPatch>()
-                .PMap(m =>
+                .PMapAsync(async m =>
                 {
                     Utils.LogStatus($"Generating zEdit merge: {m.To}");
 
                     var src_data = m.Sources.Select(s => File.ReadAllBytes(Path.Combine(installer.Outputfolder, s.RelativePath)))
                         .ConcatArrays();
 
-                    var patch_data = installer.LoadBytesFromPath(m.PatchID);
+                    var patch_data = await installer.LoadBytesFromPath(m.PatchID);
 
                     using (var fs = File.OpenWrite(Path.Combine(installer.Outputfolder, m.To))) 
                         BSDiff.Apply(new MemoryStream(src_data), () => new MemoryStream(patch_data), fs);
+                    return m;
                 });
         }
     }

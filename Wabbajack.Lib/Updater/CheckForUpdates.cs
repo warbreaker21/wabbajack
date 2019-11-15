@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Wabbajack.Common;
 
 namespace Wabbajack.Lib.Updater
@@ -16,6 +17,8 @@ namespace Wabbajack.Lib.Updater
 
         public bool FindOutdatedMods()
         {
+            throw new NotImplementedException();
+            /*
             var installer = new Installer(_modlistPath, _modlist, "");
             Utils.Log($"Checking links for {_modlist.Archives.Count} archives");
 
@@ -29,6 +32,7 @@ namespace Wabbajack.Lib.Updater
             }).ToList();
 
             return results.Any();
+            */
         }
 
     }

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using VFS;
 using Wabbajack.Common;
 using Wabbajack.Lib;
 
@@ -33,36 +32,34 @@ namespace Wabbajack.Test
             utils.Dispose();
         }
 
-        protected Compiler ConfigureAndRunCompiler(string profile)
+        protected async Task<Compiler> ConfigureAndRunCompiler(string profile)
         {
             var compiler = MakeCompiler();
-            compiler.VFS.Reset();
             compiler.MO2Profile = profile;
             compiler.ShowReportWhenFinished = false;
-            Assert.IsTrue(compiler.Compile());
+            Assert.IsTrue(await compiler.Compile());
             return compiler;
         }
 
         protected Compiler MakeCompiler()
         {
-            VirtualFileSystem.Reconfigure(utils.TestFolder);
             var compiler = new Compiler(utils.MO2Folder);
             return compiler;
         }
-        protected ModList CompileAndInstall(string profile)
+        protected async Task<ModList> CompileAndInstall(string profile)
         {
-            var compiler = ConfigureAndRunCompiler(profile);
+            var compiler = await ConfigureAndRunCompiler(profile);
             Install(compiler);
             return compiler.ModList;
         }
 
-        protected void Install(Compiler compiler)
+        protected async Task Install(Compiler compiler)
         {
             var modlist = Installer.LoadFromFile(compiler.ModListOutputFile);
             var installer = new Installer(compiler.ModListOutputFile, modlist, utils.InstallFolder);
             installer.DownloadFolder = utils.DownloadsFolder;
             installer.GameFolder = utils.GameFolder;
-            installer.Install();
+            await installer.Install();
         }
     }
 }

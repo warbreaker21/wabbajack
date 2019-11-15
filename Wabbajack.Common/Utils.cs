@@ -413,65 +413,6 @@ namespace Wabbajack.Common
             }
         }
 
-        public static List<TR> PMap<TI, TR>(this IEnumerable<TI> coll, Func<TI, TR> f)
-        {
-            var colllst = coll.ToList();
-            Interlocked.Add(ref WorkQueue.MaxQueueSize, colllst.Count);
-            //WorkQueue.CurrentQueueSize = 0;
-
-            var remaining_tasks = colllst.Count;
-
-            var tasks = coll.Select(i =>
-            {
-                var tc = new TaskCompletionSource<TR>();
-                WorkQueue.QueueTask(() =>
-                {
-                    try
-                    {
-                        tc.SetResult(f(i));
-                    }
-                    catch (Exception ex)
-                    {
-                        tc.SetException(ex);
-                    }
-
-                    Interlocked.Increment(ref WorkQueue.CurrentQueueSize);
-                    Interlocked.Decrement(ref remaining_tasks);
-                    WorkQueue.ReportNow();
-                });
-                return tc.Task;
-            }).ToList();
-
-            // To avoid thread starvation, we'll start to help out in the work queue
-            if (WorkQueue.WorkerThread)
-                while (remaining_tasks > 0)
-                    if (WorkQueue.Queue.TryTake(out var a, 500))
-                        a();
-
-            if (WorkQueue.CurrentQueueSize == WorkQueue.MaxQueueSize)
-            {
-                WorkQueue.MaxQueueSize = 0;
-                WorkQueue.MaxQueueSize = 0;
-            }
-
-            return tasks.Select(t =>
-            {
-                t.Wait();
-                if (t.IsFaulted)
-                    throw t.Exception;
-                return t.Result;
-            }).ToList();
-        }
-
-        public static void PMap<TI>(this IEnumerable<TI> coll, Action<TI> f)
-        {
-            coll.PMap(i =>
-            {
-                f(i);
-                return false;
-            });
-        }
-
         public static void DoProgress<T>(this IEnumerable<T> coll, string msg, Action<T> f)
         {
             var lst = coll.ToList();

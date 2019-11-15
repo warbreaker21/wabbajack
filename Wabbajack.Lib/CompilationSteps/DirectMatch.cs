@@ -16,10 +16,10 @@ namespace Wabbajack.Lib.CompilationSteps
             var result = source.EvolveTo<FromArchive>();
 
             var match = found.Where(f =>
-                                Path.GetFileName(f.Paths[f.Paths.Length - 1]) == Path.GetFileName(source.Path))
-                            .OrderBy(f => f.Paths.Length)
+                                Path.GetFileName(f.Name) == Path.GetFileName(source.Path))
+                            .OrderBy(f => f.NestingFactor)
                             .FirstOrDefault()
-                        ?? found.OrderBy(f => f.Paths.Length).FirstOrDefault();
+                        ?? found.OrderBy(f => f.NestingFactor).FirstOrDefault();
 
             result.ArchiveHashPath = match.MakeRelativePaths();
 

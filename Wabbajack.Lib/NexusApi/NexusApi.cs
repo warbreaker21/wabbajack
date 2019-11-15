@@ -14,6 +14,7 @@ using System.Security.Authentication;
 using System.Text;
 using System.Threading.Tasks;
 using Wabbajack.Common;
+using Wabbajack.Common.CSP;
 using Wabbajack.Lib.Downloaders;
 using WebSocketSharp;
 using static Wabbajack.Lib.NexusApi.NexusApiUtils;
@@ -328,7 +329,7 @@ namespace Wabbajack.Lib.NexusApi
             set => _localCacheDir = value;
         }
 
-        public void ClearUpdatedModsInCache()
+        public async Task ClearUpdatedModsInCache()
         {
             if (!UseLocalCache) return;
 
@@ -365,7 +366,7 @@ namespace Wabbajack.Lib.NexusApi
                 .ToList();
 
             Utils.Log($"Purging {to_purge.Count} cache entries");
-            to_purge.PMap(f => File.Delete(f.f));
+            await to_purge.PMapSync(f => File.Delete(f.f));
 
         }
     }

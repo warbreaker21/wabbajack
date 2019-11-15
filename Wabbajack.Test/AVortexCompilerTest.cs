@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using VFS;
 using Wabbajack.Common;
 using Wabbajack.Lib;
 
@@ -32,32 +32,30 @@ namespace Wabbajack.Test
             utils.Dispose();
         }
 
-        protected VortexCompiler ConfigureAndRunCompiler()
+        protected async Task<VortexCompiler> ConfigureAndRunCompiler()
         {
             var vortexCompiler = MakeCompiler();
-            vortexCompiler.VFS.Reset();
             vortexCompiler.DownloadsFolder = utils.DownloadsFolder;
             vortexCompiler.StagingFolder = utils.InstallFolder;
             Directory.CreateDirectory(utils.InstallFolder);
-            Assert.IsTrue(vortexCompiler.Compile());
+            Assert.IsTrue(await vortexCompiler.Compile());
             return vortexCompiler;
         }
 
         protected VortexCompiler MakeCompiler()
         {
-            VirtualFileSystem.Reconfigure(utils.TestFolder);
             var vortexCompiler = new VortexCompiler(utils.GameName, utils.GameFolder);
             return vortexCompiler;
         }
 
-        protected ModList CompileAndInstall()
+        protected async Task<ModList> CompileAndInstall()
         {
-            var vortexCompiler = ConfigureAndRunCompiler();
-            Install(vortexCompiler);
+            var vortexCompiler = await ConfigureAndRunCompiler();
+            await Install(vortexCompiler);
             return vortexCompiler.ModList;
         }
 
-        protected void Install(VortexCompiler vortexCompiler)
+        protected async Task Install(VortexCompiler vortexCompiler)
         {
             var modList = Installer.LoadFromFile(vortexCompiler.ModListOutputFile);
             var installer = new Installer(vortexCompiler.ModListOutputFile, modList, utils.InstallFolder)
@@ -65,7 +63,7 @@ namespace Wabbajack.Test
                 DownloadFolder = utils.DownloadsFolder,
                 GameFolder = utils.GameFolder,
             };
-            installer.Install();
+            await installer.Install();
         }
     }
 }
