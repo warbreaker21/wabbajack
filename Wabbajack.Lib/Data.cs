@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Windows.Controls;
 using Ceras;
 using Compression.BSA;
 using Wabbajack.Common;
@@ -25,10 +26,13 @@ namespace Wabbajack.Lib
 
         public T EvolveTo<T>() where T : Directive, new()
         {
-            var v = new T();
-            v.To = Path;
-            v.Hash = Hash;
-            v.Size = File.Size;
+            var v = new T
+            {
+                To = Path, 
+                Hash = Hash, 
+                Size = File.Size
+            };
+
             return v;
         }
     }

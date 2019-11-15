@@ -17,7 +17,7 @@ namespace Wabbajack.Test
     public class SanityTests : ACompilerTest
     {
         [TestMethod]
-        public void TestDirectMatch()
+        public async Task TestDirectMatch()
         {
 
             var profile = utils.AddProfile();
@@ -29,13 +29,13 @@ namespace Wabbajack.Test
             utils.AddManualDownload(
                 new Dictionary<string, byte[]> {{"/baz/biz.pex", File.ReadAllBytes(test_pex)}});
 
-            CompileAndInstall(profile);
+            await CompileAndInstall(profile);
 
             utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex");
         }
 
         [TestMethod]
-        public void TestDuplicateFilesAreCopied()
+        public async Task TestDuplicateFilesAreCopied()
         {
 
             var profile = utils.AddProfile();
@@ -50,7 +50,7 @@ namespace Wabbajack.Test
             utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/baz/biz.pex", File.ReadAllBytes(test_pex) } });
 
-            CompileAndInstall(profile);
+            await CompileAndInstall(profile);
 
             utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex");
             utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex.copy");

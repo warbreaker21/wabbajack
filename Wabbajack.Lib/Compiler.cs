@@ -274,6 +274,7 @@ namespace Wabbajack.Lib
                 Archives = SelectedArchives,
                 ModManager = ModManager.MO2,
                 Directives = InstallDirectives,
+                PortableFiles = GetPortableFiles(),
                 Name = ModListName ?? MO2Profile,
                 Author = ModListAuthor ?? "",
                 Description = ModListDescription ?? "",
@@ -293,6 +294,11 @@ namespace Wabbajack.Lib
 
             Info("Done Building Modlist");
             return true;
+        }
+
+        private List<PortableFile> GetPortableFiles()
+        {
+            return VFS.GetPortableState(InstallDirectives.OfType<FromArchive>().Select(a => a.FromFile));
         }
 
         private void IncludeArchiveMetadata()

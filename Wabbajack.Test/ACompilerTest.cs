@@ -49,7 +49,7 @@ namespace Wabbajack.Test
         protected async Task<ModList> CompileAndInstall(string profile)
         {
             var compiler = await ConfigureAndRunCompiler(profile);
-            Install(compiler);
+            await Install(compiler);
             return compiler.ModList;
         }
 

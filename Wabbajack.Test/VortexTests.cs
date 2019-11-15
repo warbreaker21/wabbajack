@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Wabbajack.Lib.CompilationSteps;
 
 namespace Wabbajack.Test
@@ -7,12 +8,12 @@ namespace Wabbajack.Test
     public class VortexTests : AVortexCompilerTest
     {
         [TestMethod]
-        public void TestVortexStackSerialization()
+        public async Task TestVortexStackSerialization()
         {
             utils.AddMod("test");
             utils.Configure();
 
-            var vortexCompiler = ConfigureAndRunCompiler();
+            var vortexCompiler = await ConfigureAndRunCompiler();
             var stack = vortexCompiler.MakeStack();
 
             var serialized = Serialization.Serialize(stack);

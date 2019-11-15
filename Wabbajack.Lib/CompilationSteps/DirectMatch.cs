@@ -22,6 +22,7 @@ namespace Wabbajack.Lib.CompilationSteps
                         ?? found.OrderBy(f => f.NestingFactor).FirstOrDefault();
 
             result.ArchiveHashPath = match.MakeRelativePaths();
+            result.FromFile = match;
 
             return result;
         }
