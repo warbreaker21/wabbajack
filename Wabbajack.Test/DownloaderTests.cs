@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Wabbajack.Common;
 using Wabbajack.Lib;
@@ -18,10 +19,17 @@ namespace Wabbajack.Test
         {
         }
 
-        [TestMethod]
-        public void TestAllPrepares()
+        public static IEnumerable<object[]> GetDownloaders()
         {
-            DownloadDispatcher.Downloaders.Do(d => d.Prepare());
+            return DownloadDispatcher.Downloaders.Select(d => new[] {d});
+        }
+
+
+        [DataTestMethod]
+        [DynamicData(nameof(GetDownloaders), DynamicDataSourceType.Method)]
+        public void TestAllPrepares(IDownloader downloader)
+        {
+            downloader.Prepare();
         }
 
         [TestMethod]
@@ -142,6 +150,37 @@ namespace Wabbajack.Test
             Assert.AreEqual("eSIyd+KOG3s=", Utils.FileHash(filename));
 
             Assert.AreEqual(File.ReadAllText(filename), "Cheese for Everyone!");
+        }
+
+        [TestMethod]
+        public void LoversLabDownload()
+        {
+            DownloadDispatcher.GetInstance<LoversLabDownloader>().Prepare();
+
+            var ini = @"[General]
+                        directURL=https://www.loverslab.com/files/file/11116-test-file-for-wabbajack-integration/?do=download&r=737123&confirm=1&t=1";
+
+            var state = (AbstractDownloadState)DownloadDispatcher.ResolveArchive(ini.LoadIniString());
+
+            Assert.IsNotNull(state);
+
+            /*var url_state = DownloadDispatcher.ResolveArchive("https://www.loverslab.com/files/file/11116-test-file-for-wabbajack-integration/?do=download&r=737123&confirm=1&t=1");
+
+            Assert.AreEqual("http://build.wabbajack.org/WABBAJACK_TEST_FILE.txt",
+                ((HTTPDownloader.State)url_state).Url);
+                */
+            var converted = state.ViaJSON();
+            Assert.IsTrue(converted.Verify());
+            var filename = Guid.NewGuid().ToString();
+
+            Assert.IsTrue(converted.IsWhitelisted(new ServerWhitelist { AllowedPrefixes = new List<string>() }));
+            /*
+            converted.Download(new Archive { Name = "MEGA Test.txt" }, filename);
+
+            Assert.AreEqual("eSIyd+KOG3s=", Utils.FileHash(filename));
+
+            Assert.AreEqual(File.ReadAllText(filename), "Cheese for Everyone!");
+            */
         }
 
         [TestMethod]

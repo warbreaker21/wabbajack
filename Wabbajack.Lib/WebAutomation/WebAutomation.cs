@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -47,9 +50,9 @@ namespace Wabbajack.Lib.WebAutomation
             t.Start();
         }
 
-        public static async Task<Driver> Create()
+        public static async Task<Driver> Create(DisplayMode mode = DisplayMode.Hidden)
         {
-            var driver = new Driver();
+            var driver = new Driver(mode);
             driver._window = await driver._windowTask;
             driver._ctx = (WebAutomationWindowViewModel) driver._window.DataContext;
             return driver;
@@ -90,5 +93,68 @@ namespace Wabbajack.Lib.WebAutomation
         {
             _window.Dispatcher.Invoke(_window.Close);
         }
+
+        public Task<string> Eval(string script)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            _window.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var result = _window.WebView.InvokeScript("eval", script);
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+            return tcs.Task;
+        }
+
+
+        public async Task<HttpClient> GetClient()
+        {
+            
+            var cookies = await Eval("document.cookie");
+            var location = await GetLocation();
+            var container = ParseCookies(location, cookies);
+            var handler = new HttpClientHandler { CookieContainer = container };
+            var client = new HttpClient(handler);
+            client.DefaultRequestHeaders.Referrer = location;
+            return client;
+        }
+
+        private CookieContainer ParseCookies(Uri location, string input)
+        {
+            // From https://stackoverflow.com/questions/28979882/parsing-cookies
+            var urib = new UriBuilder();
+            urib.Host = location.Host;
+            urib.Scheme = location.Scheme;
+            var uri = urib.Uri;
+
+            var container = new CookieContainer();
+            var values = input.TrimEnd(';').Split(';');
+            foreach (var parts in values.Select(c => c.Split(new[] { '=' }, 2)))
+            {
+                var cookieName = parts[0].Trim();
+                string cookieValue;
+
+                if (parts.Length == 1)
+                {
+                    //Cookie attribute
+                    cookieValue = string.Empty;
+                }
+                else
+                {
+                    cookieValue = parts[1];
+                }
+
+                container.Add(uri, new Cookie(cookieName, cookieValue));
+            }
+
+            return container;
+        }
     }
 }
+

@@ -34,6 +34,11 @@ namespace Wabbajack.Lib.Downloaders
 
         public abstract IDownloader GetDownloader();
 
+        protected T GetDownloader<T>()
+        {
+            return DownloadDispatcher.GetInstance<T>();
+        }
+
         public abstract string GetReportEntry(Archive a);
     }
 }
