@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using Wabbajack.Common;
+using Xilium.CefGlue;
 
 namespace Wabbajack.Lib.WebAutomation
 {
@@ -19,6 +22,13 @@ namespace Wabbajack.Lib.WebAutomation
         private WebAutomationWindow _window;
         private WebAutomationWindowViewModel _ctx;
         private Task<WebAutomationWindow> _windowTask;
+
+        static Driver()
+        {
+            /*var settings = new CefSettings {PersistSessionCookies = true};
+            var args = new CefMainArgs(new string[]{});
+            CefRuntime.Initialize(args, settings, null);*/
+        }
 
         private Driver(DisplayMode displayMode = DisplayMode.Hidden)
         {
@@ -63,22 +73,62 @@ namespace Wabbajack.Lib.WebAutomation
             return _ctx.NavigateTo(uri);
         }
 
+        public List<Cookie> GetCookies(string domainEnding)
+        {
+            var manager = CefCookieManager.GetGlobal(null);
+            var visitor = new CookieVisitor();
+            manager.VisitAllCookies(visitor);
+            Thread.Sleep(500);
+            return visitor.Cookies.Where(c=> c.Domain.EndsWith(domainEnding)).ToList();
+        }
+        public string GetAgentString()
+        {
+            return
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
+        }
+
+        private class CookieVisitor : CefCookieVisitor
+        {
+            public List<Cookie> Cookies { get; }= new List<Cookie>();
+            protected override bool Visit(CefCookie cookie, int count, int total, out bool delete)
+            {
+                Cookies.Add(new Cookie
+                {
+                    Name = cookie.Name,
+                    Value = cookie.Value,
+                    Domain = cookie.Domain,
+                    Path = cookie.Path
+                });
+                delete = false;
+                return true;
+            }
+        }
+
+        public class Cookie
+        {
+            public string Name { get; set; }
+            public string Value { get; set; }
+            public string Domain { get; set; }
+            public string Path { get; set; }
+        }
+
+
         public Task<Uri> GetLocation()
         {
             var tcs = new TaskCompletionSource<Uri>();
-            _window.Dispatcher.Invoke(() => tcs.SetResult(_window.WebView.Source));
+            _window.Dispatcher.Invoke(() => tcs.SetResult(new Uri(_window.WebView.Address)));
             return tcs.Task;
         }
 
         public Task<string> GetAttr(string selector, string attr)
         {
             var tcs = new TaskCompletionSource<string>();
-            _window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.InvokeAsync(async () =>
             {
                 try
                 {
                     var script = $"document.querySelector(\"{selector}\").{attr}";
-                    var result = _window.WebView.InvokeScript("eval", script);
+                    var result = await _window.WebView.EvaluateJavaScript<string>(script);
                     tcs.SetResult(result);
                 }
                 catch (Exception ex)
@@ -101,7 +151,7 @@ namespace Wabbajack.Lib.WebAutomation
             {
                 try
                 {
-                    var result = _window.WebView.InvokeScript("eval", script);
+                    var result = _window.WebView.EvaluateJavaScript<string>(script).Result;
                     tcs.SetResult(result);
                 }
                 catch (Exception ex)
@@ -113,45 +163,23 @@ namespace Wabbajack.Lib.WebAutomation
         }
 
 
-        public async Task<HttpClient> GetClient()
+        public static HttpClient GetClient(List<Cookie> cookies, string referer)
         {
-            
-            var cookies = await Eval("document.cookie");
-            var location = await GetLocation();
-            var container = ParseCookies(location, cookies);
-            var handler = new HttpClientHandler { CookieContainer = container };
+            var container = ToCookieContainer(cookies);
+            var handler = new HttpClientHandler {CookieContainer = container};
             var client = new HttpClient(handler);
-            client.DefaultRequestHeaders.Referrer = location;
+            client.DefaultRequestHeaders.Referrer = new Uri(referer);
             return client;
         }
 
-        private CookieContainer ParseCookies(Uri location, string input)
+        private static CookieContainer ToCookieContainer(List<Cookie> cookies)
         {
-            // From https://stackoverflow.com/questions/28979882/parsing-cookies
-            var urib = new UriBuilder();
-            urib.Host = location.Host;
-            urib.Scheme = location.Scheme;
-            var uri = urib.Uri;
-
             var container = new CookieContainer();
-            var values = input.TrimEnd(';').Split(';');
-            foreach (var parts in values.Select(c => c.Split(new[] { '=' }, 2)))
+            cookies
+                .Do(cookie =>
             {
-                var cookieName = parts[0].Trim();
-                string cookieValue;
-
-                if (parts.Length == 1)
-                {
-                    //Cookie attribute
-                    cookieValue = string.Empty;
-                }
-                else
-                {
-                    cookieValue = parts[1];
-                }
-
-                container.Add(uri, new Cookie(cookieName, cookieValue));
-            }
+                container.Add(new System.Net.Cookie(cookie.Name, cookie.Value, cookie.Path, cookie.Domain));
+            });
 
             return container;
         }

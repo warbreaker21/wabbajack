@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.Toolkit.Win32.UI.Controls.Interop.WinRT;
-using Microsoft.Toolkit.Wpf.UI.Controls;
+using Xilium.CefGlue;
+using Xilium.CefGlue.WPF;
 
 namespace Wabbajack.Lib.WebAutomation
 {
@@ -9,26 +9,22 @@ namespace Wabbajack.Lib.WebAutomation
     {
         private WebAutomationWindow _window;
 
-        private WebView Browser => _window.WebView;
+        public WpfCefBrowser Browser => _window.WebView;
 
         public WebAutomationWindowViewModel(WebAutomationWindow window)
         {
             _window = window;
         }
 
-        public Task<Uri> NavigateTo(Uri uri)
+        public async Task<Uri> NavigateTo(Uri uri)
         {
-            var tcs = new TaskCompletionSource<Uri>();
-
-            EventHandler<WebViewControlNavigationCompletedEventArgs> handler = null;
-            handler = (s, e) =>
+            Browser.Address = uri.ToString();
+            while (Browser.IsLoading)
             {
-                Browser.NavigationCompleted -= handler;
-                tcs.SetResult(uri);
-            };
-            Browser.NavigationCompleted += handler;
-            Browser.Source = uri;
-            return tcs.Task;
+                await Task.Delay(100);
+            }
+
+            return new Uri(Browser.Address);
         }
 
 

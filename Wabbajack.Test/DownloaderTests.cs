@@ -174,13 +174,13 @@ namespace Wabbajack.Test
             var filename = Guid.NewGuid().ToString();
 
             Assert.IsTrue(converted.IsWhitelisted(new ServerWhitelist { AllowedPrefixes = new List<string>() }));
-            /*
+            
             converted.Download(new Archive { Name = "MEGA Test.txt" }, filename);
 
             Assert.AreEqual("eSIyd+KOG3s=", Utils.FileHash(filename));
 
             Assert.AreEqual(File.ReadAllText(filename), "Cheese for Everyone!");
-            */
+            
         }
 
         [TestMethod]

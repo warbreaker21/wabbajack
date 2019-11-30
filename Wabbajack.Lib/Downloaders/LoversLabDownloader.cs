@@ -1,15 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.UI;
+using ReactiveUI;
 using Wabbajack.Common;
 using Wabbajack.Lib.Validation;
 using Wabbajack.Lib.WebAutomation;
+using Alphaleonis.Win32.Filesystem;
+using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
+using File = Alphaleonis.Win32.Filesystem.File;
 
 namespace Wabbajack.Lib.Downloaders
 {
@@ -41,11 +48,34 @@ namespace Wabbajack.Lib.Downloaders
 
         private async Task<HttpClient> GetAuthedClient()
         {
-            using (var driver = await Driver.Create(DisplayMode.Visible))
+            try
             {
-                await driver.NavigateTo(new Uri("https://www.loverslab.com"));
-                var html = (await driver.GetAttr("#elUserLink", "innerHTML"));
-                return html != null ? await driver.GetClient() : null;
+                var cookies = new List<Driver.Cookie>();
+                if (!File.Exists("loverslabcookies.changeme"))
+                {
+                    using (var driver = await Driver.Create(DisplayMode.Visible))
+                    {
+                        await driver.NavigateTo(new Uri("http://www.loverslab.com/login"));
+
+                        while (cookies.All(c => c.Name != "ips4_login_key"))
+                        {
+                            cookies = driver.GetCookies("loverslab.com");
+                            await Task.Delay(500);
+                        }
+
+                        cookies.ToJSON("loverslabcookies.changeme");
+                        return Driver.GetClient(cookies, "https://www.loverslab.com");
+                    }
+                }
+                else {
+                    cookies = "loverslabcookies.changeme".FromJSON<List<Driver.Cookie>>();
+                    return Driver.GetClient(cookies, "https://www.loverslab.com");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
         }
 
@@ -60,36 +90,56 @@ namespace Wabbajack.Lib.Downloaders
 
             public override void Download(Archive a, string destination)
             {
-                var state = ResolveDownloadUrl().Result;
-                state.Download(destination);
+                var stream = ResolveDownloadStream().Result;
+                using (var file = File.OpenWrite(destination))
+                {
+                    stream.CopyTo(file);
+                }
             }
 
-            private async Task<HTTPDownloader.State> ResolveDownloadUrl()
+            private async Task<Stream> ResolveDownloadStream()
             {
                 var result = GetDownloader<LoversLabDownloader>();
                 var html = await result._authedClient.GetStringAsync(
                     $"https://www.loverslab.com/files/file/11116-test-file-for-wabbajack-integration/?do=download&r={FileID}");
 
+                var pattern = new Regex("(?<=csrfKey=).*(?=[&\"\'])");
+                var csrfKey = pattern.Matches(html).Cast<Match>().Where(m => m.Length == 32).Select(m => m.ToString()).FirstOrDefault();
 
+                if (csrfKey == null)
+                    return null;
 
-                /*
-                using (var driver = await Driver.Create())
+                var url =
+                    $"https://www.loverslab.com/files/file/11116-test-file-for-wabbajack-integration/?do=download&r={FileID}&confirm=1&t=1&csrfKey={csrfKey}";
+
+                var streamResult = await result._authedClient.GetAsync(url);
+                if (streamResult.StatusCode != HttpStatusCode.OK)
                 {
-                    await driver.NavigateTo(new Uri(Url));
-                    var result = await driver.Eval(
-                        "var arr=[]; document.querySelectorAll(\".ipsDataItem\").forEach(i => arr.push([i.querySelector(\"span\").innerText, i.querySelector(\"a\").href])); JSON.stringify(arr)");
-                    var list = result.FromJSONString<List<List<string>>>();
-                    var client = await driver.GetClient();
-                    var url = list.FirstOrDefault(a => a[0] == ModName)?[1];
-                    await Task.Delay(10000);
-                    return new HTTPDownloader.State { Url = url, Client = client };
-                }*/
-                return null;
+                    Utils.Error($"LoversLab servers reported an error for file: {FileID}");
+                }
+
+                var content_type = streamResult.Content.Headers.ContentType;
+
+                if (content_type.MediaType == "application/json")
+                {
+                    Utils.Error("TODO");
+                }
+
+                return await streamResult.Content.ReadAsStreamAsync();
+
             }
 
             public override bool Verify()
             {
-                return ResolveDownloadUrl().Result.Verify();
+                var stream =  ResolveDownloadStream().Result;
+                if (stream == null)
+                {
+                    return false;
+                }
+
+                stream.Close();
+                return true;
+
             }
 
             public override IDownloader GetDownloader()

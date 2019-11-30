@@ -4,11 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Wabbajack"
-        xmlns:controls="clr-namespace:Microsoft.Toolkit.Wpf.UI.Controls;assembly=Microsoft.Toolkit.Wpf.UI.Controls.WebView"
+        xmlns:wpf="clr-namespace:Xilium.CefGlue.WPF;assembly=Xilium.CefGlue.WPF"
         mc:Ignorable="d"
         Title="WebAutomationWindow" Height="450" Width="800">
     <Grid>
-        <controls:WebView Name="WebView">
-        </controls:WebView>
+        <wpf:WpfCefBrowser  Grid.Row="0" Name="WebView" Address="www.google.com" />
     </Grid>
 </Window>
