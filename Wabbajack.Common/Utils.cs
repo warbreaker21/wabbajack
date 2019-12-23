@@ -590,6 +590,19 @@ namespace Wabbajack.Common
                 });
                 return tc.Task;
             }).ToList();
+
+            // To avoid thread starvation, we'll start to help out in the work queue
+            if (WorkQueue.WorkerThread)
+            {
+                while (remainingTasks > 0)
+                {
+                    if (queue.Queue.TryTake(out var a, 500))
+                    {
+                        await a();
+                    }
+                }
+            }
+
             return await Task.WhenAll(tasks);
         }
 
@@ -617,6 +630,18 @@ namespace Wabbajack.Common
                 });
                 return tc.Task;
             }).ToList();
+
+            // To avoid thread starvation, we'll start to help out in the work queue
+            if (WorkQueue.WorkerThread)
+            {
+                while (remainingTasks > 0)
+                {
+                    if (queue.Queue.TryTake(out var a, 500))
+                    {
+                        await a();
+                    }
+                }
+            }
 
             return await Task.WhenAll(tasks);
         }
@@ -646,6 +671,18 @@ namespace Wabbajack.Common
                 });
                 return tc.Task;
             }).ToList();
+
+            // To avoid thread starvation, we'll start to help out in the work queue
+            if (WorkQueue.WorkerThread)
+            {
+                while (remainingTasks > 0)
+                {
+                    if (queue.Queue.TryTake(out var a, 500))
+                    {
+                        await a();
+                    }
+                }
+            }
 
             await Task.WhenAll(tasks);
         }
