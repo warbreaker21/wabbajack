@@ -31,7 +31,6 @@ namespace Wabbajack.Lib.NexusApi
     public class NexusApiClient : ViewModel
     {
         private static readonly string API_KEY_CACHE_FILE = "nexus.key_cache";
-        private static string _additionalEntropy = "vtP2HF6ezg";
 
         private static object _diskLock = new object();
 

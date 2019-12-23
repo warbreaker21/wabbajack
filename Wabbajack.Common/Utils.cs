@@ -227,13 +227,9 @@ namespace Wabbajack.Common
         {
             try
             {
-                var hash = new xxHashConfig();
-                hash.HashSizeInBits = 64;
-                hash.Seed = 0x42;
                 using (var fs = new MemoryStream(data))
                 {
-                    var config = new xxHashConfig();
-                    config.HashSizeInBits = 64;
+                    var config = new xxHashConfig {HashSizeInBits = 64};
                     using (var f = new StatusFileStream(fs, $"Hashing memory stream"))
                     {
                         var value = xxHashFactory.Instance.Create(config).ComputeHash(f);
@@ -594,16 +590,6 @@ namespace Wabbajack.Common
                 });
                 return tc.Task;
             }).ToList();
-
-            // To avoid thread starvation, we'll start to help out in the work queue
-            if (WorkQueue.WorkerThread)
-                while (remainingTasks > 0)
-                    if (queue.Queue.TryTake(out var a, 500))
-                    {
-                        WorkQueue.AsyncLocalCurrentQueue.Value = WorkQueue.ThreadLocalCurrentQueue.Value;
-                        await a();
-                    }
-
             return await Task.WhenAll(tasks);
         }
 
@@ -631,15 +617,6 @@ namespace Wabbajack.Common
                 });
                 return tc.Task;
             }).ToList();
-
-            // To avoid thread starvation, we'll start to help out in the work queue
-            if (WorkQueue.WorkerThread)
-                while (remainingTasks > 0)
-                    if (queue.Queue.TryTake(out var a, 500))
-                    {
-                        WorkQueue.AsyncLocalCurrentQueue.Value = WorkQueue.ThreadLocalCurrentQueue.Value;
-                        await a();
-                    }
 
             return await Task.WhenAll(tasks);
         }
@@ -669,15 +646,6 @@ namespace Wabbajack.Common
                 });
                 return tc.Task;
             }).ToList();
-
-            // To avoid thread starvation, we'll start to help out in the work queue
-            if (WorkQueue.WorkerThread)
-                while (remainingTasks > 0)
-                    if (queue.Queue.TryTake(out var a, 500))
-                    {
-                        WorkQueue.AsyncLocalCurrentQueue.Value = WorkQueue.ThreadLocalCurrentQueue.Value;
-                        await a();
-                    }
 
             await Task.WhenAll(tasks);
         }

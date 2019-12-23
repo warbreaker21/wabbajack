@@ -77,7 +77,7 @@ namespace Wabbajack.Lib.ModListRegistry
                     if (summaries.TryGetValue(data.Title, out var summary))
                         data.ValidationSummary = summary;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
 
