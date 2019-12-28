@@ -76,6 +76,9 @@ namespace Wabbajack
                 case ShowLoginManager c:
                     MainWindow.NavigateTo(MainWindow.LoginManagerVM);
                     break;
+                case RequestBethesdaNetLogin c:
+                    c.Resume(await BethesdaNetDownloader.Login());
+                    break;
                 default:
                     throw new NotImplementedException($"No handler for {msg}");
             }
