@@ -52,23 +52,47 @@ namespace Wabbajack.Test
         }
         
         [TestMethod]
-        public async Task TestDirectMatchIsIgnoredWhenGameFolderFilesOverrideExists()
+        public async Task TestDirectMatchFromDeepInGameFolder()
         {
 
             var profile = utils.AddProfile();
             var mod = utils.AddMod();
-            var test_pex = utils.AddGameFile(@"enbstuff\test.pex", 10);
+            var test_pex = utils.AddGameFile(@"enbseries\FXAA\test.fx", 10);
 
             utils.Configure();
-
-            Directory.CreateDirectory(Path.Combine(utils.MO2Folder, Consts.GameFolderFilesDir));
 
             utils.AddManualDownload(
                 new Dictionary<string, byte[]> {{"/baz/biz.pex", File.ReadAllBytes(test_pex)}});
 
             await CompileAndInstall(profile);
 
+            utils.VerifyInstalledGameFile(@"enbseries\FXAA\test.fx");
+        }
+        
+        [TestMethod]
+        public async Task TestDirectMatchIsIgnoredWhenGameFolderFilesOverrideExists()
+        {
+
+            var profile = utils.AddProfile();
+            var mod = utils.AddMod();
+            var test_pex = utils.AddGameFile(@"enbstuff\test.pex", 10);
+            var test_gff = utils.AddMO2File(Path.Combine(Consts.GameFolderFilesDir, @"enbstuff\test.fx"), 10);
+
+            utils.Configure();
+
+            Directory.CreateDirectory(Path.Combine(utils.MO2Folder, Consts.GameFolderFilesDir));
+
+            utils.AddManualDownload(
+                new Dictionary<string, byte[]>
+                {
+                    {"/baz/biz.pex", File.ReadAllBytes(test_pex)},
+                    {"/baz/test.fx", File.ReadAllBytes(test_gff)}
+                });
+
+            await CompileAndInstall(profile);
+
             Assert.IsFalse(File.Exists(Path.Combine(utils.InstallFolder, Consts.GameFolderFilesDir, @"enbstuff\test.pex")));
+            
         }
 
         [TestMethod]

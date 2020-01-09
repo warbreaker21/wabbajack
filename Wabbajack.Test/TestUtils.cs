@@ -247,5 +247,15 @@ namespace Wabbajack.Test
             GenerateRandomFileData(full_path, i);
             return full_path;
         }
+        
+        public string AddMO2File(string path, int i)
+        {
+            var full_path = Path.Combine(MO2Folder, path);
+            var dir = Path.GetDirectoryName(full_path);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            GenerateRandomFileData(full_path, i);
+            return full_path;
+        }
     }
 }
