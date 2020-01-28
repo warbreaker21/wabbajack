@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reactive.Linq;
@@ -11,14 +12,17 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
 using Windows.UI.Xaml;
-using Alphaleonis.Win32.Filesystem;
 using Microsoft.WindowsAPICodePack.Dialogs.Controls;
 using Newtonsoft.Json.Linq;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Security;
 using ReactiveUI;
 using Wabbajack.Common;
 using Wabbajack.Lib.Validation;
 using File = Alphaleonis.Win32.Filesystem.File;
 using Game = Wabbajack.Common.Game;
+using Path = Alphaleonis.Win32.Filesystem.Path;
 
 namespace Wabbajack.Lib.Downloaders
 {
@@ -124,9 +128,16 @@ namespace Wabbajack.Lib.Downloaders
                         var got = await client.GetAsync(
                             $"https://content.cdp.bethesda.net/{collected.CDPProductId}/{collected.CDPPropertiesId}/{chunk.sha}");
                         var data = await got.Content.ReadAsByteArrayAsync();
-                        if (data.Length != chunk.chunk_size)
-                            throw new Exception("Downloaded chunk size did not match");
-                        await file.WriteAsync(data, 0, data.Length);
+                        AESCTRDecrypt(collected.AESKey, collected.AESIV, data);
+                        
+                        if (chunk.uncompressed_size == chunk.chunk_size)
+                            await file.WriteAsync(data, 0, data.Length);
+                        else
+                        {
+                            using (var ms = new MemoryStream(data))
+                            using (var zlibStream = new ICSharpCode.SharpZipLib.Zip.Compression.Streams.InflaterInputStream(ms))
+                                await zlibStream.CopyToAsync(file);
+                        }
                     }
                 }
             }
@@ -184,9 +195,20 @@ namespace Wabbajack.Lib.Downloaders
                 got = await client.GetAsync(
                     $"/cdp-user/projects/{info.CDPProductId}/branches/{info.CDPBranchId}/depots/.json");
 
-                info.CDPPropertiesId = (int)(JObject.Parse(await got.Content.ReadAsStringAsync()).Properties().First().Value["properties_id"]);
+                var props_obj = JObject.Parse(await got.Content.ReadAsStringAsync()).Properties().First();
+                info.CDPPropertiesId = (int)props_obj.Value["properties_id"];
+                info.AESKey = props_obj.Value["ex_info_A"].Select(e => (byte)e).ToArray();
+                info.AESIV = props_obj.Value["ex_info_B"].Select(e => (byte)e).Take(16).ToArray();
                 
                 return (client, tree, info);
+            }
+            
+            static int AESCTRDecrypt(byte[] Key, byte[] IV, byte[] Data)
+            {
+                IBufferedCipher cipher = CipherUtilities.GetCipher("AES/CTR/NoPadding");
+                cipher.Init(false, new ParametersWithIV(ParameterUtilities.CreateKeyParameter("AES", Key), IV));
+
+                return cipher.DoFinal(Data, Data, 0);
             }
 
             public override IDownloader GetDownloader()
@@ -214,6 +236,8 @@ namespace Wabbajack.Lib.Downloaders
 
             private class CollectedBNetInfo
             {
+                public byte[] AESKey { get; set; }
+                public byte[] AESIV { get; set; }
                 public string AccessToken { get; set; }
                 public string CDPToken { get; set; }
                 public int CDPBranchId { get; set; }

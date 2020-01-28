@@ -44,7 +44,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>7.3</LangVersion>
     <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+      <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -188,6 +188,9 @@
   <ItemGroup>
     <PackageReference Include="AlphaFS">
       <Version>2.2.6</Version>
+    </PackageReference>
+    <PackageReference Include="BouncyCastle.Crypto.dll">
+      <Version>1.8.5</Version>
     </PackageReference>
     <PackageReference Include="CefGlue.Wpf">
       <Version>75.1.28</Version>

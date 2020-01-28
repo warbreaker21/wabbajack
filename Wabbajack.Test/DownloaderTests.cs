@@ -338,7 +338,7 @@ namespace Wabbajack.Test
             Assert.IsTrue(await downloader.IsLoggedIn.FirstAsync());
 
             var ini = $@"[General]
-                              directURL=https://bethesda.net/en/mods/fallout4/mod-detail/1045761";
+                              directURL=https://bethesda.net/en/mods/fallout4/mod-detail/4145641";
             /*var ini = $@"[General]
                                 directURL=https://bethesda.net/en/mods/fallout4/mod-detail/3411824";*/
 
