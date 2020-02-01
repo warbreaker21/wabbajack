@@ -62,6 +62,8 @@ namespace Wabbajack.Test
                 });
 
             await DownloadAndInstall(Game.SkyrimSpecialEdition, 12604, "SkyUI");
+            // To detect bug caused by a strangely structured archive nesting
+            await DownloadAndInstall(Game.Fallout4, 12226, "Settlement Keywords Expanded");
 
             utils.Configure();
 
