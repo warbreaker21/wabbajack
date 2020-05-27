@@ -26,6 +26,9 @@
             Description = row[0]
         }));
     #>
+using System.Linq;
+using System.Collections.Generic;
+
 namespace Wabbajack.Common.FileSignatures {
     public static class Definitions {
     public enum FileType { <#
@@ -36,7 +39,7 @@ namespace Wabbajack.Common.FileSignatures {
     <#} #>
     }
 
-    public static (FileType, byte[])[] Signatures = {
+    public static (FileType FileType, byte[] Signature)[] Signatures = {
     <#
     foreach (var row in rows) 
     {
@@ -50,4 +53,8 @@ namespace Wabbajack.Common.FileSignatures {
 
 #>
 
-    };}}
+    };
+    
+    public static Dictionary<FileType, List<(FileType FileType, byte[] Signature)>> ByType = Signatures.GroupBy(s => s.FileType).ToDictionary(s => s.Key, s => s.ToList());
+
+}}
