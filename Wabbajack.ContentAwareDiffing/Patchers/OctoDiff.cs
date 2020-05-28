@@ -18,25 +18,26 @@ namespace Wabbajack.ContentAwareDiffing.Patchers
 
         public async Task BuildPatch(AbsolutePath source, AbsolutePath destination, AbsolutePath patchOutput)
         {
-            await using var signatureStream = new MemoryStream();
             Utils.Status("Building patch signature");
+            await using var sourceStream = await source.OpenRead();
+            await using var patchStream = await patchOutput.OpenWrite();
+            await using var destStream = await destination.OpenShared(); 
+                
+            await GeneratePatch(sourceStream, destStream, patchStream); 
+        }
+
+        public static async Task GeneratePatch(Stream sourceStream,
+            Stream destStream, Stream patchStream)
+        {
+            await using var signatureStream = new MemoryStream();
             var signatureBuilder = new SignatureBuilder();
-            await using (var sourceStream = await source.OpenRead())
-            {
-                signatureBuilder.Build(sourceStream, new SignatureWriter(signatureStream));
-            }
-
+            signatureBuilder.Build(sourceStream, new SignatureWriter(signatureStream));
             signatureStream.Position = 0;
-            
-            Utils.Status("Building Patch");
 
-            await using (var patchStream = await patchOutput.OpenWrite())
-            await using (var destStream = await destination.OpenShared())
-            {
-                var db = new DeltaBuilder {ProgressReporter = reporter};
-                db.BuildDelta(destStream, new SignatureReader(signatureStream, reporter),
-                    new AggregateCopyOperationsDecorator(new BinaryDeltaWriter(patchStream)));
-            }
+            Utils.Status("Building Patch");
+            var db = new DeltaBuilder {ProgressReporter = reporter};
+            db.BuildDelta(destStream, new SignatureReader(signatureStream, reporter),
+                new AggregateCopyOperationsDecorator(new BinaryDeltaWriter(patchStream)));
         }
 
         public async Task<bool> CanBuildPatch(AbsolutePath source, AbsolutePath destination)

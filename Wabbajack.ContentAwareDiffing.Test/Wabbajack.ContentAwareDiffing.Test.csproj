@@ -13,4 +13,21 @@
         <PackageReference Include="coverlet.collector" Version="1.2.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="TestingData\noiseTexture.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="TestingData\noiseTextureCAO5Compressed.dds">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="TestingData\noiseTextureUncompressed.dds">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Wabbajack.Common\Wabbajack.Common.csproj" />
+      <ProjectReference Include="..\Wabbajack.ContentAwareDiffing\Wabbajack.ContentAwareDiffing.csproj" />
+    </ItemGroup>
+
 </Project>
