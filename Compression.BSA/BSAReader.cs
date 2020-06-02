@@ -339,7 +339,7 @@ namespace Compression.BSA
             {
                 if (Compressed)
                 {
-                    using var r = LZ4Stream.Decode(rdr.BaseStream);
+                    await using var r = LZ4Stream.Decode(rdr.BaseStream);
                     await r.CopyToLimitAsync(output, (int) _originalSize);
                 }
                 else

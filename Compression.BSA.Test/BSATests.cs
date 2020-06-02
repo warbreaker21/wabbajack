@@ -70,6 +70,7 @@ namespace Compression.BSA.Test
 
         [Theory]
         [InlineData(Game.SkyrimSpecialEdition, 12604)] // SkyUI
+        [InlineData(Game.SkyrimSpecialEdition, 32518)] // BD's replacer has some funky lz4 format
         [InlineData(Game.Skyrim, 3863)] // SkyUI
         [InlineData(Game.Skyrim, 51473)] // INeed
         [InlineData(Game.Fallout4, 22223)] // 10mm SMG

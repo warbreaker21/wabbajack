@@ -163,7 +163,7 @@ namespace Compression.BSA
 
         public static void CopyToLimit(this Stream frm, Stream tw, int limit)
         {
-            var buff = new byte[1024];
+            var buff = new byte[1024 * 8];
             while (limit > 0)
             {
                 var to_read = Math.Min(buff.Length, limit);
@@ -179,11 +179,11 @@ namespace Compression.BSA
         
         public static async Task CopyToLimitAsync(this Stream frm, Stream tw, int limit)
         {
-            var buff = new byte[1024];
+            var buff = new byte[1024 * 8];
             while (limit > 0)
             {
-                var to_read = Math.Min(buff.Length, limit);
-                var read = await frm.ReadAsync(buff, 0, to_read);
+                var toRead = Math.Min(buff.Length, limit);
+                var read = await frm.ReadAsync(buff, 0, toRead);
                 if (read == 0)
                     throw new Exception("End of stream before end of limit");
                 await tw.WriteAsync(buff, 0, read);
