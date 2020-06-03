@@ -113,7 +113,6 @@ namespace Wabbajack.Lib
                 {
                     MO2Folder, MO2DownloadsFolder
                 };
-                
             }
 
             // TODO: make this generic so we can add more paths
@@ -354,7 +353,7 @@ namespace Wabbajack.Lib
             GenerateManifest();
 
             UpdateTracker.NextStep("Exporting Modlist");
-            await ExportModList();
+            await Export();
 
             ResetMembers();
 

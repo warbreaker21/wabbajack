@@ -134,7 +134,7 @@ namespace Wabbajack.Lib
             return true;
         }
 
-        public async Task ExportModList()
+        protected virtual async Task Export()
         {
             Utils.Log($"Exporting ModList to {ModListOutputFile}");
 
@@ -144,12 +144,12 @@ namespace Wabbajack.Lib
                 ModList.Image = (RelativePath)"modlist-image.png";
             }
 
-            using (var of = await ModListOutputFolder.Combine("modlist").Create()) 
+            await using (var of = await ModListOutputFolder.Combine("modlist").Create()) 
                 ModList.ToJson(of);
 
             await ModListOutputFile.DeleteAsync();
 
-            using (var fs = await ModListOutputFile.Create())
+            await using (var fs = await ModListOutputFile.Create())
             {
                 using (var za = new ZipArchive(fs, ZipArchiveMode.Create))
                 {

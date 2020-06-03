@@ -221,7 +221,7 @@ namespace Wabbajack.Lib
                     Status($"Verifying Patch {toPatch.To.FileName}");
                     hash = await toFile.FileHashAsync();
                     if (hash != toPatch.Hash)
-                        throw new InvalidDataException($"Invalid Hash for {toPatch.To} after patching");
+                        throw new InvalidDataException($"Invalid Hash for {toPatch.To} {hash} vs {toPatch.Hash} after patching (sizes {toFile.Size} {toPatch.Size})");
                 });
         }
 
