@@ -36,7 +36,7 @@ namespace Wabbajack.Lib.Validation
 
         }
 
-        public static async Task RunValidation(ModList modlist)
+        public static async Task RunValidation(IModList modlist)
         {
             var validator = new ValidateModlist();
 
@@ -55,7 +55,7 @@ namespace Wabbajack.Lib.Validation
             }
         }
 
-        public async Task<IEnumerable<string>> Validate(ModList modlist)
+        public async Task<IEnumerable<string>> Validate(IModList modlist)
         {
             ConcurrentStack<string> ValidationErrors = new ConcurrentStack<string>();
             modlist.Archives

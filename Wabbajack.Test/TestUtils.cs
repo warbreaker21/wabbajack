@@ -181,9 +181,22 @@ namespace Wabbajack.Test
         public async Task VerifyInstalledFile(string mod, string file)
         {
             var src = MO2Folder.Combine((string)Consts.MO2ModFolderName, mod, file);
-            Assert.True(src.Exists);
-
             var dest = InstallFolder.Combine((string)Consts.MO2ModFolderName, mod, file);
+
+            await VerifyFile(mod, file, src, dest);
+        }
+        
+        public async Task VerifyRecipeFile(string mod, string file)
+        {
+            var src = MO2Folder.Combine((string)Consts.MO2ModFolderName, mod, file);
+            var dest = InstallFolder.Combine(file);
+
+            await VerifyFile(mod, file, src, dest);
+        }
+
+        private static async Task VerifyFile(string mod, string file, AbsolutePath src, AbsolutePath dest)
+        {
+            Assert.True(src.Exists);
             Assert.True(dest.Exists, $"Destination {dest} doesn't exist");
 
             var srcData = await src.ReadAllBytesAsync();
@@ -191,13 +204,13 @@ namespace Wabbajack.Test
 
             Assert.Equal(srcData.Length, destData.Length);
 
-            for(int x = 0; x < srcData.Length; x++)
+            for (int x = 0; x < srcData.Length; x++)
             {
                 if (srcData[x] != destData[x])
                     Assert.True(false, $"Index {x} of {mod}\\{file} are not the same");
             }
         }
-        
+
         public async Task VerifyInstalledGameFile(string file)
         {
             var src = GameFolder.Combine(file);

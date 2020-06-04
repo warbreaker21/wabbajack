@@ -101,6 +101,9 @@ namespace Wabbajack.Common
         public static Extension MetaFileExtension = new Extension(".meta");
         public const string ModListExtensionString = ".wabbajack";
         public static Extension ModListExtension = new Extension(ModListExtensionString);
+
+        public const string RecipeExtensionString = ".wabbajack_recipe";
+        public static Extension RecipeExtension = new Extension(RecipeExtensionString);
         public static AbsolutePath LocalAppDataPath => new AbsolutePath(Path.Combine(KnownFolders.LocalAppData.Path, "Wabbajack"));
         public static string MetricsKeyHeader => "x-metrics-key";
 

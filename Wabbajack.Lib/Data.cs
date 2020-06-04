@@ -46,12 +46,12 @@ namespace Wabbajack.Lib
     }
 
     [JsonName("ModList")]
-    public class ModList
+    public class ModList : IModList
     {
         /// <summary>
         ///     Archives required by this modlist
         /// </summary>
-        public List<Archive> Archives = new List<Archive>();
+        public List<Archive> Archives { get; set; } = new List<Archive>();
 
         /// <summary>
         ///     Author of the ModList
@@ -66,12 +66,12 @@ namespace Wabbajack.Lib
         /// <summary>
         ///     Install directives
         /// </summary>
-        public List<Directive> Directives = new List<Directive>();
+        public List<Directive> Directives { get; set; } = new List<Directive>();
 
         /// <summary>
         ///     The game variant to which this game applies
         /// </summary>
-        public Game GameType;
+        public Game GameType { get; set; }
 
         /// <summary>
         ///     Hash of the banner-image
@@ -86,7 +86,7 @@ namespace Wabbajack.Lib
         /// <summary>
         ///     Name of the ModList
         /// </summary>
-        public string Name = string.Empty;
+        public string Name { get; set; } = string.Empty;
 
         /// <summary>
         ///     URL to the readme
@@ -125,12 +125,32 @@ namespace Wabbajack.Lib
         [JsonIgnore]
         public long InstallSize => Directives.Sum(s => s.Size);
 
-        public ModList Clone()
+        public IModList Clone()
         {
             using var ms = new MemoryStream();
             this.ToJson(ms);
             ms.Position = 0;
             return ms.FromJson<ModList>();
+        }
+    }
+
+    [JsonName("Recipe")]
+    public class Recipe : IModList
+    {
+        public List<Directive> Directives { get; set; } = new List<Directive>();
+        public List<Archive> Archives { get; set; } = new List<Archive>();
+        public Game GameType { get; set; }
+        public Version Version { get; set; } = new Version("0.0.0.0");
+        public string Author { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        
+        public IModList Clone()
+        {
+            using var ms = new MemoryStream();
+            this.ToJson(ms);
+            ms.Position = 0;
+            return ms.FromJson<Recipe>();
         }
     }
 

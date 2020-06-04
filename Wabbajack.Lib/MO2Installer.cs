@@ -27,12 +27,13 @@ namespace Wabbajack.Lib
     public class MO2Installer : AInstaller
     {
         public bool WarnOnOverwrite { get; set; } = true;
+        public bool SetPortable { get; set; } = true;
 
         public override ModManager ModManager => ModManager.MO2;
 
         public AbsolutePath? GameFolder { get; set; }
 
-        public MO2Installer(AbsolutePath archive, ModList modList, AbsolutePath outputFolder, AbsolutePath downloadFolder, SystemParameters parameters)
+        public MO2Installer(AbsolutePath archive, IModList modList, AbsolutePath outputFolder, AbsolutePath downloadFolder, SystemParameters parameters)
             : base(
                   archive: archive,
                   modList: modList,
@@ -162,7 +163,8 @@ namespace Wabbajack.Lib
             await zEditIntegration.GenerateMerges(this);
 
             UpdateTracker.NextStep("Set MO2 into portable");
-            await ForcePortable();
+            if (SetPortable) 
+                await ForcePortable();
 
             UpdateTracker.NextStep("Create Empty Output Mods");
             CreateOutputMods();

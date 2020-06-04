@@ -11,11 +11,14 @@ namespace Wabbajack.Lib
     public class RecipeCompiler : MO2Compiler
     {
         public string ModName { get; }
+        public AbsolutePath ModFolder { get; set; }
 
         public RecipeCompiler(AbsolutePath mo2Folder, string mo2Profile, AbsolutePath outputFile, string modName) : base(mo2Folder, mo2Profile, outputFile)
         {
             ModName = modName;
+            ModFolder = mo2Folder.Combine("mods", modName);
         }
+
 
         public override IEnumerable<ICompilationStep> MakeStack() 
         {
@@ -35,7 +38,7 @@ namespace Wabbajack.Lib
             }
 
             await using (var of = await ModListOutputFolder.Combine("recipe").Create()) 
-                ModList.ToJson(of);
+                MakeRecipe(ModList).ToJson(of);
 
             await ModListOutputFile.DeleteAsync();
 
@@ -71,6 +74,21 @@ namespace Wabbajack.Lib
             Utils.Log("Removing Recipe staging folder");
             await Utils.DeleteDirectory(ModListOutputFolder);
         }
+
+        private Recipe MakeRecipe(ModList modList)
+        {
+            return new Recipe
+            {
+                Version = modList.Version,
+                Archives = modList.Archives,
+                Directives = modList.Directives.Select(d =>
+                {
+                    d.To = d.To.RelativeTo(MO2Folder).RelativeTo(ModFolder);
+                    return d;
+                }).ToList(),
+                Author = modList.Author,
+                Name = ModName
+            };
         }
     }
 }

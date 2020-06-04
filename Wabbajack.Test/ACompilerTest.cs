@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic;
 using Wabbajack.Common;
 using Wabbajack.Lib;
 using Wabbajack.Lib.LibCefHelpers;
@@ -43,6 +44,18 @@ namespace Wabbajack.Test
             Assert.True(await compiler.Begin());
             return compiler;
         }
+        
+        protected async Task<MO2Compiler> ConfigureAndRunRecipeCompiler(string profile, string mod, bool useGameFiles = false)
+        {
+            var compiler = new RecipeCompiler(
+                mo2Folder: utils.MO2Folder,
+                mo2Profile: profile,
+                outputFile: RecipeOutputFile(profile),
+                modName: mod);
+            compiler.UseGamePaths = useGameFiles;
+            Assert.True(await compiler.Begin());
+            return compiler;
+        }
 
         protected async Task<ModList> CompileAndInstall(string profile, bool useGameFiles = false)
         {
@@ -51,16 +64,46 @@ namespace Wabbajack.Test
             await Install(compiler);
             return compiler.ModList;
         }
+        
+        protected async Task<ModList> CompileAndInstallRecipe(string profile, string mod, bool useGameFiles = false)
+        {
+            var compiler = await ConfigureAndRunRecipeCompiler(profile, mod, useGameFiles: useGameFiles);
+            Utils.Log("Finished Compiling");
+            await InstallRecipe(compiler);
+            return compiler.ModList;
+        }
 
         private static AbsolutePath OutputFile(string profile)
         {
             return ((RelativePath)profile).RelativeToEntryPoint().WithExtension(Consts.ModListExtension);
         }
 
+        private static AbsolutePath RecipeOutputFile(string profile)
+        {
+            return ((RelativePath)profile).RelativeToEntryPoint().WithExtension(Consts.RecipeExtension);
+        }
+
         protected async Task Install(MO2Compiler compiler)
         {
             Utils.Log("Loading Modlist");
             var modlist = AInstaller.LoadFromFile(compiler.ModListOutputFile);
+            Utils.Log("Constructing Installer");
+            var installer = new MO2Installer(
+                archive: compiler.ModListOutputFile,
+                modList: modlist,
+                outputFolder: utils.InstallFolder,
+                downloadFolder: utils.DownloadsFolder,
+                parameters: CreateDummySystemParameters());
+            installer.WarnOnOverwrite = false;
+            installer.GameFolder = utils.GameFolder;
+            Utils.Log("Starting Install");
+            await installer.Begin();
+        }
+        
+        protected async Task InstallRecipe(MO2Compiler compiler)
+        {
+            Utils.Log("Loading Modlist");
+            var modlist = AInstaller.LoadRecipeFromFile(compiler.ModListOutputFile);
             Utils.Log("Constructing Installer");
             var installer = new MO2Installer(
                 archive: compiler.ModListOutputFile,

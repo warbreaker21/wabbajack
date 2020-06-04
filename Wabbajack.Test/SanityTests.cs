@@ -519,5 +519,23 @@ namespace Wabbajack.Test
             }, modlistTxt.ToArray());
         }
 
+
+        [Fact]
+        public async Task CanCompileRecipes()
+        {
+            var profile = utils.AddProfile();
+            var mod = await utils.AddMod();
+            var testPex = await utils.AddModFile(mod, @"Data\scripts\test.pex", 10);
+
+            await utils.Configure();
+
+            await utils.AddManualDownload(
+                new Dictionary<string, byte[]> {{"/baz/biz.pex", await testPex.ReadAllBytesAsync()}});
+
+            await CompileAndInstallRecipe(profile, mod);
+
+            await utils.VerifyRecipeFile(mod, @"Data\scripts\test.pex");
+        }
+
     }
 }

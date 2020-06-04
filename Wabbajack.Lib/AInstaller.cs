@@ -26,7 +26,7 @@ namespace Wabbajack.Lib
         public abstract ModManager ModManager { get; }
 
         public AbsolutePath ModListArchive { get; private set; }
-        public ModList ModList { get; private set; }
+        public IModList ModList { get; private set; }
         public Dictionary<Hash, AbsolutePath> HashedArchives { get; } = new Dictionary<Hash, AbsolutePath>();
         
         public GameMetaData Game { get; }
@@ -34,7 +34,7 @@ namespace Wabbajack.Lib
         public SystemParameters? SystemParameters { get; set; }
 
 
-        public AInstaller(AbsolutePath archive, ModList modList, AbsolutePath outputFolder, AbsolutePath downloadFolder, SystemParameters? parameters, int steps, Game game)
+        public AInstaller(AbsolutePath archive, IModList modList, AbsolutePath outputFolder, AbsolutePath downloadFolder, SystemParameters? parameters, int steps, Game game)
             : base(steps)
         {
             ModList = modList;
@@ -88,6 +88,15 @@ namespace Wabbajack.Lib
             }
             using (var e = entry.Open())
                 return e.FromJson<ModList>();
+        }
+        
+        public static Recipe LoadRecipeFromFile(AbsolutePath path)
+        {
+            using var fs = new FileStream((string)path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var ar = new ZipArchive(fs, ZipArchiveMode.Read);
+            var entry = ar.GetEntry("recipe");
+            using var e = entry.Open();
+            return e.FromJson<Recipe>();
         }
 
         /// <summary>
