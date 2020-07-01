@@ -66,14 +66,14 @@ namespace Wabbajack.Test
             // We're going to fully patch this mod from another source.
             await modfiles[3].Download.DeleteAsync();
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
             
             await modfiles[3].ModFolder.Combine("meta.ini").WriteAllLinesAsync(
                 "[General]",
                 $"matchAll= {modfiles[2].Download.FileName}"
             );
             
-            await utils.MO2Folder.Combine("startup.bat").WriteAllLinesAsync(
+            await utils.SourceFolder.Combine("startup.bat").WriteAllLinesAsync(
                 "ModOrganizer2.exe SKSE"
             );
 
@@ -106,7 +106,7 @@ namespace Wabbajack.Test
             await src.CopyToAsync(utils.DownloadsFolder.Combine(filename));
 
             await using var dest = await FileExtractor.ExtractAll(Queue, src);
-            await dest.MoveAllTo(modName == null ? utils.MO2Folder : utils.ModsFolder.Combine(modName));
+            await dest.MoveAllTo(modName == null ? utils.SourceFolder : utils.ModsFolder.Combine(modName));
         }
 
         private async Task<(AbsolutePath Download, AbsolutePath ModFolder)> DownloadAndInstall(Game game, int modId, string modName)
@@ -170,7 +170,7 @@ namespace Wabbajack.Test
         private async Task<MO2Compiler> ConfigureAndRunCompiler(string profile)
         {
             var compiler = new MO2Compiler(
-                mo2Folder: utils.MO2Folder,
+                mo2Folder: utils.SourceFolder,
                 mo2Profile: profile,
                 outputFile: profile.RelativeTo(AbsolutePath.EntryPoint).WithExtension(Consts.ModListExtension));
             Assert.True(await compiler.Begin());

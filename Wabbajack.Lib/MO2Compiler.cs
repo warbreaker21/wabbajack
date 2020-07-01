@@ -31,15 +31,10 @@ namespace Wabbajack.Lib
 
         public override AbsolutePath GamePath { get; }
 
-        public GameMetaData CompilingGame { get; }
-        
         /// <summary>
         /// All games available for sourcing during compilation (including the Compiling Game)
         /// </summary>
         public List<Game> AvailableGames { get; }
-
-        public override AbsolutePath ModListOutputFolder => ((RelativePath)"output_folder").RelativeToEntryPoint();
-
         public override AbsolutePath ModListOutputFile { get; }
 
         public override AbsolutePath VFSCacheName => 
@@ -58,17 +53,18 @@ namespace Wabbajack.Lib
         public HashSet<string> SelectedProfiles { get; set; } = new HashSet<string>();
 
         public MO2Compiler(AbsolutePath mo2Folder, string mo2Profile, AbsolutePath outputFile)
-            : base(steps: 20)
+            : base(steps: 20, mo2Folder, default, default)
         {
             MO2Folder = mo2Folder;
             MO2Profile = mo2Profile;
             MO2Ini = MO2Folder.Combine("ModOrganizer.ini").LoadIniFile();
             var mo2game = (string)MO2Ini.General.gameName;
-            CompilingGame = GameRegistry.Games.First(g => g.Value.MO2Name == mo2game).Value;
             GamePath = new AbsolutePath((string)MO2Ini.General.gamePath.Replace("\\\\", "\\"));
             ModListOutputFile = outputFile;
 
-            AvailableGames = CompilingGame.CanSourceFrom.Cons(CompilingGame.Game).Where(g => g.MetaData().IsInstalled).ToList();
+            AvailableGames = CompilingGame.MetaData().CanSourceFrom.Cons(CompilingGame).Where(g => g.MetaData().IsInstalled).ToList();
+            base.DownloadsPath = MO2DownloadsFolder;
+            base.CompilingGame = GameRegistry.GetByFuzzyName(mo2game).Game;
         }
 
         public AbsolutePath MO2DownloadsFolder
@@ -142,15 +138,15 @@ namespace Wabbajack.Lib
             
             if (lootPath.Exists)
             {
-                if (CompilingGame.MO2Name == null)
+                if (CompilingGameMeta.MO2Name == null)
                 {
                     throw new ArgumentException("Compiling game had no MO2 name specified.");
                 }
 
                 var lootGameDirs = new []
                 {
-                    CompilingGame.MO2Name, // most of the games use the MO2 name
-                    CompilingGame.MO2Name.Replace(" ", "") //eg: Fallout 4 -> Fallout4
+                    CompilingGameMeta.MO2Name, // most of the games use the MO2 name
+                    CompilingGameMeta.MO2Name.Replace(" ", "") //eg: Fallout 4 -> Fallout4
                 };
 
                 var lootGameDir = lootGameDirs.Select(x => lootPath.Combine(x))
@@ -167,7 +163,7 @@ namespace Wabbajack.Lib
 
                     if (!lootFiles.Any())
                         Utils.Log(
-                            $"Found no LOOT user data for {CompilingGame.HumanFriendlyGameName} at {lootGameDir}!");
+                            $"Found no LOOT user data for {CompilingGameMeta.HumanFriendlyGameName} at {lootGameDir}!");
                 }
             }
             
@@ -177,7 +173,7 @@ namespace Wabbajack.Lib
             
             if (cancel.IsCancellationRequested) return false;
             UpdateTracker.NextStep("Inferring metas for game file downloads");
-            await InferMetas();
+            await InferMetas(MO2DownloadsFolder);
             
 
             if (cancel.IsCancellationRequested) return false;
@@ -332,7 +328,7 @@ namespace Wabbajack.Lib
 
             ModList = new ModList
             {
-                GameType = CompilingGame.Game,
+                GameType = CompilingGame,
                 WabbajackVersion = WabbajackVersion,
                 Archives = SelectedArchives.ToList(),
                 ModManager = ModManager.MO2,
@@ -367,90 +363,6 @@ namespace Wabbajack.Lib
 
         public bool UseGamePaths { get; set; } = true;
 
-        private async Task CleanInvalidArchivesAndFillState()
-        {
-            var remove = (await IndexedArchives.PMap(Queue, async a =>
-            {
-                try
-                {
-                    a.State = (await ResolveArchive(a)).State;
-                    return null;
-                }
-                catch
-                {
-                    return a;
-                }
-            })).NotNull().ToHashSet();
-
-            if (remove.Count == 0)
-                return;
-
-            Utils.Log(
-                $"Removing {remove.Count} archives from the compilation state, this is probably not an issue but reference this if you have compilation failures");
-            remove.Do(r => Utils.Log($"Resolution failed for: {r.File.FullPath}"));
-            IndexedArchives.RemoveAll(a => remove.Contains(a));
-        }
-
-        private async Task InferMetas()
-        {
-            async Task<bool> HasInvalidMeta(AbsolutePath filename)
-            {
-                var metaname = filename.WithExtension(Consts.MetaFileExtension);
-                if (!metaname.Exists) return true;
-                return await DownloadDispatcher.ResolveArchive(metaname.LoadIniFile()) == null;
-            }
-
-            var to_find = (await MO2DownloadsFolder.EnumerateFiles()
-                .Where(f => f.Extension != Consts.MetaFileExtension && f.Extension !=Consts.HashFileExtension)
-                .PMap(Queue, async f => await HasInvalidMeta(f) ? f : default))
-                .Where(f => f.Exists)
-                .ToList();
-
-            if (to_find.Count == 0) return;
-
-            Utils.Log($"Attempting to infer {to_find.Count} metas from the server.");
-
-            await to_find.PMap(Queue, async f =>
-            {
-                var vf = VFS.Index.ByRootPath[f];
-
-                var meta = await ClientAPI.InferDownloadState(vf.Hash);
-
-
-
-                if (meta == null)
-                {
-                    await vf.AbsoluteName.WithExtension(Consts.MetaFileExtension).WriteAllLinesAsync(
-                        "[General]", 
-                        "unknownArchive=true");
-                    return;
-                }
-
-                Utils.Log($"Inferred .meta for {vf.FullPath.FileName}, writing to disk");
-                await vf.AbsoluteName.WithExtension(Consts.MetaFileExtension).WriteAllTextAsync(meta.GetMetaIniString());
-            });
-        }
-
-        private async Task IncludeArchiveMetadata()
-        {
-            Utils.Log($"Including {SelectedArchives.Count} .meta files for downloads");
-            await SelectedArchives.PMap(Queue, async a =>
-            {
-                if (a.State is GameFileSourceDownloader.State) return;
-                
-                var source = MO2DownloadsFolder.Combine(a.Name + Consts.MetaFileExtension);
-                var ini = a.State.GetMetaIniString();
-                var (id, fullPath) = await IncludeString(ini);
-                InstallDirectives.Add(new ArchiveMeta
-                {
-                    SourceDataID = id,
-                    Size = fullPath.Size,
-                    Hash = await fullPath.FileHashAsync(),
-                    To = source.FileName
-                });
-            });
-        }
-
         /// <summary>
         ///     Clear references to lists that hold a lot of data.
         /// </summary>
@@ -462,100 +374,6 @@ namespace Wabbajack.Lib
             ExtraFiles = new ConcurrentBag<Directive>();
         }
 
-        /// <summary>
-        ///     Fills in the Patch fields in files that require them
-        /// </summary>
-        private async Task BuildPatches()
-        {
-            Info("Gathering patch files");
-
-            var toBuild = InstallDirectives.OfType<PatchedFromArchive>()
-                .Where(p => p.Choices.Length > 0)
-                .SelectMany(p => p.Choices.Select(c => new PatchedFromArchive
-                    {
-                        To = p.To,
-                        Hash = p.Hash,
-                        ArchiveHashPath = c.MakeRelativePaths(),
-                        FromFile = c,
-                        Size = p.Size,
-                    }))
-                .ToArray();
-
-            if (toBuild.Length == 0) return;
- 
-            var groups = toBuild
-                .Where(p => p.PatchID == default)
-                .GroupBy(p => p.ArchiveHashPath.BaseHash)
-                .ToList();
-
-            Info($"Patching building patches from {groups.Count} archives");
-            var absolutePaths = AllFiles.ToDictionary(e => e.Path, e => e.AbsolutePath);
-            await groups.PMap(Queue, group => BuildArchivePatches(group.Key, group, absolutePaths));
-
-
-            await InstallDirectives.OfType<PatchedFromArchive>()
-                .Where(p => p.PatchID == default)
-                .PMap(Queue, async pfa =>
-                {
-                    var patches = pfa.Choices
-                        .Select(c => (Utils.TryGetPatch(c.Hash, pfa.Hash, out var data), data, c))
-                        .ToArray();
-
-                    if (patches.All(p => p.Item1))
-                    {
-                        var (_, bytes, file) = patches.OrderBy(f => f.data!.Length).First();
-                        pfa.FromFile = file;
-                        pfa.FromHash = file.Hash;
-                        pfa.ArchiveHashPath = file.MakeRelativePaths();
-                        pfa.PatchID = await IncludeFile(bytes!);
-                    }
-                });
-
-            var firstFailedPatch = InstallDirectives.OfType<PatchedFromArchive>().FirstOrDefault(f => f.PatchID == default);
-            if (firstFailedPatch != null)
-                Error($"Missing patches after generation, this should not happen. First failure: {firstFailedPatch.FullPath}");
-        }
-
-        private async Task BuildArchivePatches(Hash archiveSha, IEnumerable<PatchedFromArchive> group,
-            Dictionary<RelativePath, AbsolutePath> absolutePaths)
-        {
-            await using var files = await VFS.StageWith(@group.Select(g => VFS.Index.FileForArchiveHashPath(g.ArchiveHashPath)));
-            var byPath = files.GroupBy(f => string.Join("|", f.FilesInFullPath.Skip(1).Select(i => i.Name)))
-                .ToDictionary(f => f.Key, f => f.First());
-            // Now Create the patches
-            await @group.PMap(Queue, async entry =>
-            {
-                Info($"Patching {entry.To}");
-                Status($"Patching {entry.To}");
-                var srcFile = byPath[string.Join("|", entry.ArchiveHashPath.Paths)];
-                await using var srcStream = await srcFile.OpenRead();
-                await using var destStream = await LoadDataForTo(entry.To, absolutePaths);
-                var patchSize = await Utils.CreatePatchCached(srcStream, srcFile.Hash, destStream, entry.Hash);
-                Info($"Patch size {patchSize} for {entry.To}");
-            });
-        }
-
-        private async Task<FileStream> LoadDataForTo(RelativePath to, Dictionary<RelativePath, AbsolutePath> absolutePaths)
-        {
-            if (absolutePaths.TryGetValue(to, out var absolute))
-                return await absolute.OpenRead();
-
-            if (to.StartsWith(Consts.BSACreationDir))
-            {
-                var bsaId = (RelativePath)((string)to).Split('\\')[1];
-                var bsa = InstallDirectives.OfType<CreateBSA>().First(b => b.TempID == bsaId);
-
-                var a = await BSADispatch.OpenRead(MO2Folder.Combine(bsa.To));
-                var find = (RelativePath)Path.Combine(((string)to).Split('\\').Skip(2).ToArray());
-                var file = a.Files.First(e => e.Path == find);
-                var returnStream = new TempStream();
-                await file.CopyDataTo(returnStream);
-                returnStream.Position = 0;
-                return returnStream;
-            }
-
-            throw new ArgumentException($"Couldn't load data for {to}");
-        }
 
         public override IEnumerable<ICompilationStep> GetStack()
         {

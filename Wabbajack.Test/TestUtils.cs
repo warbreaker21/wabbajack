@@ -32,19 +32,20 @@ namespace Wabbajack.Test
         public AbsolutePath TestFolder => WorkingDirectory.Combine(ID);
         public AbsolutePath GameFolder => WorkingDirectory.Combine(ID, "game_folder");
 
-        public AbsolutePath MO2Folder => WorkingDirectory.Combine(ID, "mo2_folder");
-        public AbsolutePath ModsFolder => MO2Folder.Combine(Consts.MO2ModFolderName);
-        public AbsolutePath DownloadsFolder => MO2Folder.Combine("downloads");
+        public AbsolutePath SourceFolder => WorkingDirectory.Combine(ID, "mo2_folder");
+        public AbsolutePath ModsFolder => SourceFolder.Combine(Consts.MO2ModFolderName);
+        public AbsolutePath DownloadsFolder => SourceFolder.Combine("downloads");
 
         public AbsolutePath InstallFolder => TestFolder.Combine("installed");
+        public string ListName { get; set; }
 
         public HashSet<string> Profiles = new HashSet<string>();
 
         public List<string> Mods = new List<string>();
 
-        public async Task Configure(IEnumerable<(string ModName, bool IsEnabled)> enabledMods = null)
+        public async Task ConfigureMO2(IEnumerable<(string ModName, bool IsEnabled)> enabledMods = null)
         {
-            await MO2Folder.Combine("ModOrganizer.ini").WriteAllLinesAsync(
+            await SourceFolder.Combine("ModOrganizer.ini").WriteAllLinesAsync(
                 "[General]", 
                 $"gameName={Game.MetaData().MO2Name}", 
                 $"gamePath={((string)GameFolder).Replace("\\", "\\\\")}", 
@@ -57,7 +58,7 @@ namespace Wabbajack.Test
             {
                 Profiles.Do(profile =>
                 {
-                    MO2Folder.Combine("profiles", profile, "modlist.txt").WriteAllLinesAsync(
+                    SourceFolder.Combine("profiles", profile, "modlist.txt").WriteAllLinesAsync(
                         Mods.Select(s => $"+{s}").ToArray());
                 });
             }
@@ -65,16 +66,21 @@ namespace Wabbajack.Test
             {
                 Profiles.Do(profile =>
                 {
-                    MO2Folder.Combine("profiles", profile, "modlist.txt").WriteAllLinesAsync(
+                    SourceFolder.Combine("profiles", profile, "modlist.txt").WriteAllLinesAsync(
                         enabledMods.Select(s => $"{(s.IsEnabled ? "+" : "-")}{s.ModName}").ToArray());
                 });
             }
         }
 
+        public async Task ConfigureZeroManager()
+        {
+            DownloadsFolder.CreateDirectory();
+        }
+
         public string AddProfile(string name = null)
         {
             string profile_name = name ?? RandomName();
-            MO2Folder.Combine("profiles", profile_name).CreateDirectory();
+            SourceFolder.Combine("profiles", profile_name).CreateDirectory();
             Profiles.Add(profile_name);
             return profile_name;
         }
@@ -82,7 +88,7 @@ namespace Wabbajack.Test
         public async Task<string> AddMod(string name = null)
         {
             string mod_name = name ?? RandomName();
-            var mod_folder = MO2Folder.Combine(Consts.MO2ModFolderName, (RelativePath)mod_name);
+            var mod_folder = SourceFolder.Combine(Consts.MO2ModFolderName, (RelativePath)mod_name);
             mod_folder.CreateDirectory();
             await mod_folder.Combine("meta.ini").WriteAllTextAsync("[General]");
             Mods.Add(mod_name);
@@ -180,7 +186,7 @@ namespace Wabbajack.Test
 
         public async Task VerifyInstalledFile(string mod, string file)
         {
-            var src = MO2Folder.Combine((string)Consts.MO2ModFolderName, mod, file);
+            var src = SourceFolder.Combine((string)Consts.MO2ModFolderName, mod, file);
             Assert.True(src.Exists);
 
             var dest = InstallFolder.Combine((string)Consts.MO2ModFolderName, mod, file);
@@ -237,18 +243,18 @@ namespace Wabbajack.Test
             foreach (var destFile in InstallFolder.EnumerateFiles())
             {
                 var relFile = destFile.RelativeTo(InstallFolder);
-                if (destFile.InFolder(Consts.LOOTFolderFilesDir.RelativeTo(MO2Folder)) || destFile.InFolder(Consts.GameFolderFilesDir.RelativeTo(MO2Folder)))
+                if (destFile.InFolder(Consts.LOOTFolderFilesDir.RelativeTo(SourceFolder)) || destFile.InFolder(Consts.GameFolderFilesDir.RelativeTo(SourceFolder)))
                     continue;
                 
                 if (!skipFiles.Contains(relFile)) 
-                    Assert.True(MO2Folder.Combine(relFile).Exists, $"Only in Destination: {relFile}");
+                    Assert.True(SourceFolder.Combine(relFile).Exists, $"Only in Destination: {relFile}");
             }
 
             var skipExtensions = new []{".txt", ".ini"}.Select(e => new Extension(e)).ToHashSet();
 
-            foreach (var srcFile in MO2Folder.EnumerateFiles())
+            foreach (var srcFile in SourceFolder.EnumerateFiles())
             {
-                var relFile = srcFile.RelativeTo(MO2Folder);
+                var relFile = srcFile.RelativeTo(SourceFolder);
 
                 if (relFile.StartsWith("downloads\\"))
                     continue;

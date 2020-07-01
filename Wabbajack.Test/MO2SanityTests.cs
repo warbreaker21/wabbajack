@@ -14,10 +14,10 @@ using Path = Alphaleonis.Win32.Filesystem.Path;
 
 namespace Wabbajack.Test
 {
-    public class SanityTests : ACompilerTest
+    public class MO2SanityTests : ACompilerTest
     {
 
-        public SanityTests(ITestOutputHelper helper) : base(helper)
+        public MO2SanityTests(ITestOutputHelper helper) : base(helper)
         {
         }
 
@@ -30,12 +30,12 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var testPex = await utils.AddModFile(mod, @"Data\scripts\test.pex", 10);
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]> {{"/baz/biz.pex", await testPex.ReadAllBytesAsync()}});
 
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex");
         }
@@ -48,14 +48,14 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var testPex = await utils.AddModFile(mod, @"Data\scripts\test.pex", 10);
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]> {{"/baz/biz.pex", await testPex.ReadAllBytesAsync()}});
             
             await utils.DownloadsFolder.Combine("some_other_file.7z").WriteAllTextAsync("random data");
 
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex");
         }
@@ -68,12 +68,12 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var testPex = await utils.AddGameFile(@"enbstuff\test.pex", 10);
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]> {{"/baz/biz.pex", await testPex.ReadAllBytesAsync()}});
 
-            await CompileAndInstall(profile, useGameFiles: true);
+            await CompileAndInstallMO2(profile, useGameFiles: true);
 
             await utils.VerifyInstalledGameFile(@"enbstuff\test.pex");
         }
@@ -86,14 +86,14 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var testPex = await utils.AddGameFile(@"enbstuff\test.pex", 10);
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
-            utils.MO2Folder.Combine(Consts.GameFolderFilesDir).CreateDirectory();
+            utils.SourceFolder.Combine(Consts.GameFolderFilesDir).CreateDirectory();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]> {{"/baz/biz.pex", await testPex.ReadAllBytesAsync()}});
 
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             Assert.False(utils.InstallFolder.Combine(Consts.GameFolderFilesDir, (RelativePath)@"enbstuff\test.pex").IsFile);
         }
@@ -109,12 +109,12 @@ namespace Wabbajack.Test
             // Make a copy to make sure it gets picked up and moved around.
             await testPex.CopyToAsync(testPex.WithExtension(new Extension(".copy")));
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/baz/biz.pex", await testPex.ReadAllBytesAsync() } });
 
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex");
             await utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex.copy");
@@ -130,7 +130,7 @@ namespace Wabbajack.Test
             var deleted = await utils.AddModFile(mod, @"Data\scripts\deleted.pex", 10);
             var modified = await utils.AddModFile(mod, @"Data\scripts\modified.pex", 10);
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]>
@@ -140,7 +140,7 @@ namespace Wabbajack.Test
                     { "/baz/modified.pex", await modified.ReadAllBytesAsync() },
                 });
 
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(mod, @"Data\scripts\unchanged.pex");
             await utils.VerifyInstalledFile(mod, @"Data\scripts\deleted.pex");
@@ -168,7 +168,7 @@ namespace Wabbajack.Test
 
             Assert.True(extraPath.Exists);
             
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(mod, @"Data\scripts\unchanged.pex");
             await utils.VerifyInstalledFile(mod, @"Data\scripts\deleted.pex");
@@ -186,7 +186,7 @@ namespace Wabbajack.Test
             var profile = utils.AddProfile();
             var mod = await utils.AddMod("dummy");
 
-            var saveFolder = utils.MO2Folder.Combine("profiles", profile, "saves");
+            var saveFolder = utils.SourceFolder.Combine("profiles", profile, "saves");
             saveFolder.CreateDirectory();
             await saveFolder.Combine("incompilation").WriteAllTextAsync("ignore this");
 
@@ -198,8 +198,8 @@ namespace Wabbajack.Test
             await installSaveFolderOtherProfile.Combine("otherprofile").WriteAllTextAsync("other profile file");
             await installSaveFolderThisProfile.Combine("thisprofile").WriteAllTextAsync("this profile file");
 
-            await utils.Configure();
-            var modlist = await CompileAndInstall(profile);
+            await utils.ConfigureMO2();
+            var modlist = await CompileAndInstallMO2(profile);
             
             Assert.Equal("other profile file", await installSaveFolderOtherProfile.Combine("otherprofile").ReadAllTextAsync());
             Assert.Equal("this profile file", await installSaveFolderThisProfile.Combine("thisprofile").ReadAllTextAsync());
@@ -212,8 +212,8 @@ namespace Wabbajack.Test
             var profile = utils.AddProfile();
             var mod = await utils.AddMod("dummy");
 
-            await utils.Configure();
-            await utils.MO2Folder.Combine("profiles", profile, "somegameprefs.ini").WriteAllLinesAsync(
+            await utils.ConfigureMO2();
+            await utils.SourceFolder.Combine("profiles", profile, "somegameprefs.ini").WriteAllLinesAsync(
                 // Beth inis are messy, let's make ours just as messy to catch some parse failures
                 "[Display]",
                 "foo=4",
@@ -227,7 +227,7 @@ namespace Wabbajack.Test
                 "[MEMORY]",
                 "VideoMemorySizeMb=22");
 
-            var modlist = await CompileAndInstall(profile);
+            var modlist = await CompileAndInstallMO2(profile);
 
             var ini = utils.InstallFolder.Combine("profiles", profile, "somegameprefs.ini").LoadIniFile();
 
@@ -244,12 +244,12 @@ namespace Wabbajack.Test
             var profile = utils.AddProfile();
             var mod = await utils.AddMod();
             var ini = await utils.AddModFile(mod, @"foo.ini", 10);
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/baz/biz.pex", await ini.ReadAllBytesAsync() } });
 
-            var modlist = await CompileAndInstall(profile);
+            var modlist = await CompileAndInstallMO2(profile);
             var directive = modlist.Directives.FirstOrDefault(m => m.To == (RelativePath)$"mods\\{mod}\\foo.ini");
 
             Assert.NotNull(directive);
@@ -264,7 +264,7 @@ namespace Wabbajack.Test
             var ini = await utils.AddModFile(mod, @"foo.ini", 10);
             var meta = await utils.AddModFile(mod, "meta.ini");
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
 
             var archive = utils.AddManualDownload(
@@ -277,7 +277,7 @@ namespace Wabbajack.Test
             // Modify after creating mod archive in the downloads folder
             await ini.WriteAllTextAsync("Wabbajack, Wabbajack, Wabbajack!");
 
-            var modlist = await CompileAndInstall(profile);
+            var modlist = await CompileAndInstallMO2(profile);
             var directive = modlist.Directives.FirstOrDefault(m => m.To == (RelativePath)$"mods\\{mod}\\foo.ini");
 
             Assert.NotNull(directive);
@@ -291,7 +291,7 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var file = await utils.AddModFile(mod, @"baz.bin", 10);
             
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
 
             await using var tempFile = new TempFile();
@@ -312,7 +312,7 @@ namespace Wabbajack.Test
             var archive = utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/stuff/files.bsa", await tempFile.Path.ReadAllBytesAsync() } });
             
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
             await utils.VerifyInstalledFile(mod, @"baz.bin");
             
         }
@@ -330,7 +330,7 @@ namespace Wabbajack.Test
                 "notes= asdf WABBAJACK_NOMATCH_INCLUDE asdfa"
             });
             
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
 
             await using var tempFile = new TempFile();
@@ -359,7 +359,7 @@ namespace Wabbajack.Test
             var archive = utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/stuff/matching_file_data.bin", tempFileData } });
             
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
             await utils.VerifyInstalledFile(mod, @"baz.bsa");
             
         }
@@ -371,7 +371,7 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var file = await utils.AddModFile(mod, @"baz.bin", 128);
             
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
 
             await using var tempFile = new TempFile();
@@ -393,7 +393,7 @@ namespace Wabbajack.Test
             var archive = utils.AddManualDownload(
                 new Dictionary<string, byte[]> { { "/stuff/files.bsa", await tempFile.Path.ReadAllBytesAsync() } });
             
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
             await utils.VerifyInstalledFile(mod, @"baz.bin");
             await utils.VerifyInstalledFile(mod, @"bsa_data.bsa");
             
@@ -406,7 +406,7 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var file = await utils.AddModFile(mod, @"baz.bsa", 10);
             
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             
             var bsaState = new BSAStateObject
@@ -439,7 +439,7 @@ namespace Wabbajack.Test
             }
 
             
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
             await utils.VerifyInstalledFile(mod, @"baz.bsa");
             
         }
@@ -488,13 +488,13 @@ namespace Wabbajack.Test
             var mod = await utils.AddMod();
             var testPex = await utils.AddModFile(mod, @"Data\scripts\test.pex", 10);
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
             await (await utils.AddModFile(mod, "meta.ini")).WriteAllLinesAsync(new[]
             {
                 "[General]", "notes= fsdaf WABBAJACK_NOMATCH_INCLUDE fadsfsad",
             });
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(mod, @"Data\scripts\test.pex");
         }
@@ -525,9 +525,9 @@ namespace Wabbajack.Test
             await testSkySE.WriteAllBytesAsync(pdata);
             
 
-            await utils.Configure();
+            await utils.ConfigureMO2();
 
-            await CompileAndInstall(profile, useGameFiles: true);
+            await CompileAndInstallMO2(profile, useGameFiles: true);
 
             await utils.VerifyInstalledFile(mod, @"Data\MW\Bm.esm");
             await utils.VerifyInstalledFile(mod, @"Data\SkyrimSE\Update.esm.old");
@@ -555,7 +555,7 @@ namespace Wabbajack.Test
                 "[General]",
                 $"notes={Consts.WABBAJACK_ALWAYS_ENABLE}");
 
-            await utils.Configure(new []
+            await utils.ConfigureMO2(new []
             {
                 (disabledMod, false),
                 (enabledMod, true)
@@ -568,7 +568,7 @@ namespace Wabbajack.Test
                     {"/file2.pex", await disabledTestPex.ReadAllBytesAsync()},
                 });
 
-            await CompileAndInstall(profile);
+            await CompileAndInstallMO2(profile);
 
             await utils.VerifyInstalledFile(enabledMod, @"Data\scripts\enabledTestPex.pex");
             await utils.VerifyInstalledFile(disabledMod, @"Data\scripts\disabledTestPex.pex");

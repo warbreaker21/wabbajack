@@ -17,12 +17,12 @@ namespace Wabbajack.Lib.CompilationSteps
             if (!(compiler is MO2Compiler mo2Compiler))
                 return;
 
-            if (mo2Compiler.CompilingGame.NexusName == null)
+            if (mo2Compiler.CompilingGameMeta.NexusName == null)
                 return;
 
-            _validGame = mo2Compiler.CompilingGame.IsGenericMO2Plugin;
+            _validGame = mo2Compiler.CompilingGameMeta.IsGenericMO2Plugin;
             _pluginsFolder = mo2Compiler.MO2Folder.Combine("plugins").ToString();
-            _gameName = $"game_{mo2Compiler.CompilingGame.NexusName}.py";
+            _gameName = $"game_{mo2Compiler.CompilingGameMeta.NexusName}.py";
         }
 
         private static Regex regex = new Regex(@"^game_$");

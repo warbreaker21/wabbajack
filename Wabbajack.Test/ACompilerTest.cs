@@ -20,6 +20,7 @@ namespace Wabbajack.Test
 
             utils = new TestUtils();
             utils.Game = Game.SkyrimSpecialEdition;
+            utils.ListName = Guid.NewGuid().ToString();
 
             DateTime startTime = DateTime.Now;
             _unsub = Utils.LogMessages.Subscribe(f => XunitContext.WriteLine($"{DateTime.Now - startTime} -  {f.ShortDescription}"));
@@ -36,7 +37,7 @@ namespace Wabbajack.Test
         protected async Task<MO2Compiler> ConfigureAndRunCompiler(string profile, bool useGameFiles= false)
         {
             var compiler = new MO2Compiler(
-                mo2Folder: utils.MO2Folder,
+                mo2Folder: utils.SourceFolder,
                 mo2Profile: profile,
                 outputFile: OutputFile(profile));
             compiler.UseGamePaths = useGameFiles;
@@ -44,13 +45,26 @@ namespace Wabbajack.Test
             return compiler;
         }
 
-        protected async Task<ModList> CompileAndInstall(string profile, bool useGameFiles = false)
+        protected async Task<ModList> CompileAndInstallMO2(string profile, bool useGameFiles = false)
         {
             var compiler = await ConfigureAndRunCompiler(profile, useGameFiles: useGameFiles);
             Utils.Log("Finished Compiling");
             await Install(compiler);
             return compiler.ModList;
         }
+        
+        
+        protected async Task<ZeroManagerCompiler> ConfigureAndRunCompilerZeroManager()
+        {
+            var compiler = new ZeroManagerCompiler(utils.SourceFolder, utils.DownloadsFolder, utils.Game, utils.ListName);
+            Assert.True(await compiler.Begin());
+            return compiler;
+        }
+        protected async Task CompileAndInstallZeroManager()
+        {
+            var compiler = await ConfigureAndRunCompilerZeroManager();
+        }
+
 
         private static AbsolutePath OutputFile(string profile)
         {

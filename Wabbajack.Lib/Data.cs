@@ -43,6 +43,13 @@ namespace Wabbajack.Lib
             v.Size = File.Size;
             return v;
         }
+
+        public IgnoredDirectly Ignore(string reason)
+        {
+            var v = EvolveTo<IgnoredDirectly>();
+            v.Reason = reason;
+            return v;
+        }
     }
 
     [JsonName("ModList")]

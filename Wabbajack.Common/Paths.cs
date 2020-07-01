@@ -369,8 +369,11 @@ namespace Wabbajack.Common
             return new AbsolutePath(Directory.GetCurrentDirectory());
         }
 
-        public async Task CopyToAsync(AbsolutePath destFile)
+        public async Task CopyToAsync(AbsolutePath destFile, bool createPaths = false)
         {
+            if (createPaths && !destFile.Parent.IsDirectory)
+                destFile.Parent.CreateDirectory();
+            
             await using var src = await OpenRead();
             await using var dest = await destFile.Create();
             await src.CopyToAsync(dest);

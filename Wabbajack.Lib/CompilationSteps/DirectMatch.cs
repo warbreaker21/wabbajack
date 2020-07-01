@@ -13,25 +13,24 @@ namespace Wabbajack.Lib.CompilationSteps
         {
         }
 
-        public static int GetFilePriority(MO2Compiler compiler, VirtualFile file)
+        public static int GetFilePriority(ACompiler compiler, VirtualFile file)
         {
             var archive = file.TopParent;
             var adata = compiler.ArchivesByFullPath[archive.AbsoluteName];
             if (adata.State is GameFileSourceDownloader.State gs)
             {
-                return gs.Game == compiler.CompilingGame.Game ? 2 : 3;
+                return gs.Game == compiler.CompilingGame ? 2 : 3;
             }
             return 1;
         }
 
         public override async ValueTask<Directive?> Run(RawSourceFile source)
         {
-            var mo2Compiler = (MO2Compiler)_compiler;
             if (!_compiler.IndexedFiles.TryGetValue(source.Hash, out var found)) return null;
             var result = source.EvolveTo<FromArchive>();
 
             var match = found.Where(f => f.Name.FileName == source.Path.FileName)
-                            .OrderBy(f => GetFilePriority(mo2Compiler, f))
+                            .OrderBy(f => GetFilePriority(_compiler, f))
                             .ThenBy(f => f.NestingFactor)
                             .FirstOrDefault()
                         ?? found.OrderBy(f => f.NestingFactor).FirstOrDefault();
