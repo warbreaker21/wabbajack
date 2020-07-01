@@ -6,20 +6,20 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using K4os.Hash.Crc;
-using RocksDbSharp;
+using LiteDB;
+using LiteDB.Engine;
 using Wabbajack.Common;
 
 namespace Wabbajack.VirtualFileSystem
 {
     public class VirtualFile
     {
-        private static RocksDb _vfsCache;
-
-
         static VirtualFile()
         {
-            var options = new DbOptions().SetCreateIfMissing(true);
-            _vfsCache = RocksDb.Open(options, (string)Consts.LocalAppDataPath.Combine("GlobalVFSCache.rocksDb"));
+            _vfsEngine = new SharedEngine(new EngineSettings {Filename = (string)Consts.LocalAppDataPath.Combine("GlobalVFSHash.liteDb")});
+            _vfsDb = new LiteDatabase(_vfsEngine);
+            _vfsCollection = _vfsDb.GetCollection<VFSCacheEntry>("vfs_cache");
+            _vfsEngine.EnsureIndex("vfs_cache", "vfs_cache", "$.Hash", true);
         }
         
         private AbsolutePath _stagedPath;
@@ -49,6 +49,17 @@ namespace Wabbajack.VirtualFileSystem
         public Context Context { get; set; }
 
         private IExtractedFile _stagedFile = null;
+        private static SharedEngine _vfsEngine;
+        private static LiteDatabase _vfsDb;
+        private static ILiteCollection<VFSCacheEntry> _vfsCollection;
+
+        class VFSCacheEntry
+        {
+            public ulong Hash { get; set; }
+            public byte[] Data { get; set; }
+            
+        }
+
         public IExtractedFile StagedFile  
         {
             get
@@ -163,14 +174,14 @@ namespace Wabbajack.VirtualFileSystem
 
         private static bool TryGetFromCache(Context context, VirtualFile parent, IPath path, IExtractedFile extractedFile, Hash hash, out VirtualFile found)
         {
-            var result = _vfsCache.Get(hash.ToArray());
+            var result = _vfsCollection.FindOne(h => h.Hash == (ulong)hash);
             if (result == null)
             {
                 found = null;
                 return false;
             }
 
-            var data = new MemoryStream(result).FromJson<IndexedVirtualFile>();
+            var data = new MemoryStream(result.Data).FromJson<IndexedVirtualFile>();
             found = ConvertFromIndexedFile(context, data, path, parent, extractedFile);
             return true;
 
@@ -246,7 +257,11 @@ namespace Wabbajack.VirtualFileSystem
 
             await using var ms = new MemoryStream();
             self.ToIndexedVirtualFile().ToJson(ms);
-            _vfsCache.Put(self.Hash.ToArray(), ms.ToArray());
+            _vfsCollection.Upsert(new VFSCacheEntry
+            {
+                Hash = (ulong)self.Hash,
+                Data = ms.ToArray()
+            });
             
             return self;
         }

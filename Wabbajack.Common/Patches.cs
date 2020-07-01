@@ -3,21 +3,25 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using RocksDbSharp;
+using LiteDB;
+using LiteDB.Engine;
 
 namespace Wabbajack.Common
 {
     public static partial class Utils
     {
 
-        private static RocksDb? _patchCache;
-        private static void InitPatches()
+        private static LiteDatabase _patchDb;
+        private static ILiteCollection<PatchCacheEntry> _patchCollection;
+        private static SharedEngine _pathEngine;
+
+
+        class PatchCacheEntry
         {
-            var options = new DbOptions().SetCreateIfMissing(true); 
-            _patchCache = RocksDb.Open(options, (string)Consts.LocalAppDataPath.Combine("PatchCache.rocksDb"));
-        }
-
-
+            public ulong From { get; set; }
+            public ulong To { get; set; }
+            public byte[] Data { get; set; } = { };
+        }    
         private static byte[] PatchKey(Hash src, Hash dest)
         {
             var arr = new byte[16];
@@ -25,16 +29,25 @@ namespace Wabbajack.Common
             Array.Copy(BitConverter.GetBytes((ulong)dest), 0, arr, 8, 8);
             return arr;
         }
+
+        private static bool TryGetPatchEntry(Hash a, Hash b, out PatchCacheEntry found)
+        {
+            var result = _patchCollection.FindOne(p => p.From == (ulong)a && p.To == (ulong)b);
+            found = result;
+            return result != null;
+
+        }
+        
         public static async Task CreatePatchCached(byte[] a, byte[] b, Stream output)
         {
             var dataA = a.xxHash();
             var dataB = b.xxHash();
             var key = PatchKey(dataA, dataB);
-            var found = _patchCache!.Get(key);
+            
 
-            if (found != null)
+            if (TryGetPatchEntry(dataA, dataB, out var found))
             {
-                await output.WriteAsync(found);
+                await output.WriteAsync(found.Data);
                 return;
             }
 
@@ -42,10 +55,19 @@ namespace Wabbajack.Common
 
             Status("Creating Patch");
             OctoDiff.Create(a, b, patch);
-            
-            _patchCache.Put(key, patch.ToArray());
-            patch.Position = 0;
 
+
+            try
+            {
+                _patchCollection.Upsert(new PatchCacheEntry
+                {
+                    From = (ulong)dataA, To = (ulong)dataB, Data = patch.ToArray()
+                });
+            }
+            catch (LiteException _)
+            {
+            }
+            
             await patch.CopyToAsync(output);
         }
 
@@ -53,20 +75,20 @@ namespace Wabbajack.Common
             Stream? patchOutStream = null)
         {
             var key = PatchKey(srcHash, destHash);
-            var patch = _patchCache!.Get(key);
-            if (patch != null)
+            if (TryGetPatchEntry(srcHash, destHash, out var patch))
             {
-                if (patchOutStream == null) return patch.Length;
+                if (patchOutStream == null) return patch.Data.Length;
                 
-                await patchOutStream.WriteAsync(patch);
-                return patch.Length;
+                await patchOutStream.WriteAsync(patch.Data);
+                return patch.Data.Length;
             }
             
             Status("Creating Patch");
             await using var sigStream = new MemoryStream();
             await using var patchStream = new MemoryStream();
             OctoDiff.Create(srcStream, destStream, sigStream, patchStream);
-            _patchCache.Put(key, patchStream.ToArray());
+            _patchCollection.Upsert(new PatchCacheEntry {From = (ulong)srcHash, To = (ulong)destHash, Data = patchStream.ToArray()});
+            
 
             if (patchOutStream == null) return patchStream.Position;
             
@@ -79,11 +101,10 @@ namespace Wabbajack.Common
         public static bool TryGetPatch(Hash foundHash, Hash fileHash, [MaybeNullWhen(false)] out byte[] ePatch)
         {
             var key = PatchKey(foundHash, fileHash);
-            var patch = _patchCache!.Get(key);
 
-            if (patch != null)
+            if (TryGetPatchEntry(foundHash, fileHash, out var result))
             {
-                ePatch = patch;
+                ePatch = result.Data;
                 return true;
             }
 
@@ -94,8 +115,7 @@ namespace Wabbajack.Common
 
         public static bool HavePatch(Hash foundHash, Hash fileHash)
         {
-            var key = PatchKey(foundHash, fileHash);
-            return _patchCache!.Get(key) != null;
+            return _patchCollection.Exists(f => f.From == (ulong)foundHash && f.To == (ulong)fileHash);
         }
 
         public static void ApplyPatch(Stream input, Func<Stream> openPatchStream, Stream output)

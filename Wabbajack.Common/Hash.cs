@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.HashFunction.xxHash;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using LiteDB;
 using Newtonsoft.Json;
-using RocksDbSharp;
-using File = Alphaleonis.Win32.Filesystem.File;
-using Path = Alphaleonis.Win32.Filesystem.Path;
 
 namespace Wabbajack.Common
 {
@@ -104,10 +101,18 @@ namespace Wabbajack.Common
             return BitConverter.GetBytes(_code);
         }
     }
+
+    class HashCacheEntry
+    {
+        
+    }
     
     public static partial class Utils
     {
-        private static RocksDb _hashCache;
+        private static SharedEngine _hashEngine;
+        private static ILiteCollection<HashCacheEntry> _hashCollection;
+        private static LiteDatabase _hashDb;
+
 
         public static Hash ReadHash(this BinaryReader br)
         {
@@ -162,35 +167,32 @@ namespace Wabbajack.Common
         }
         public static bool TryGetHashCache(AbsolutePath file, out Hash hash)
         {
-            var normPath = Encoding.UTF8.GetBytes(file.Normalize());
-            var value = _hashCache.Get(normPath);
+            var normPath = file.Normalize();
+            var value = _hashCollection.FindOne(f => f.Path == normPath);
             hash = default;
             
             if (value == null) return false;
-            if (value.Length != 20) return false;
 
-            using var ms = new MemoryStream(value);
-            using var br = new BinaryReader(ms);
-            var version = br.ReadUInt32();
-            if (version != HashCacheVersion) return false;
-
-            var lastModified = br.ReadUInt64();
-            if (lastModified != file.LastModifiedUtc.AsUnixTime()) return false;
-            hash = new Hash(br.ReadUInt64());
+            if (value.LastModified != file.LastModifiedUtc.AsUnixTime()) return false;
+            hash = new Hash(value.Hash);
             return true;
         }
 
+        class HashCacheEntry
+        {
+            public string Path { get; set; } = "";
+            public ulong Hash { get; set; } 
+            public ulong LastModified { get; set; }
+        }
 
         private const uint HashCacheVersion = 0x01;
         private static void WriteHashCache(AbsolutePath file, Hash hash)
         {
-            using var ms = new MemoryStream(20);
-            using var bw = new BinaryWriter(ms);
-            bw.Write(HashCacheVersion);
             var lastModified = file.LastModifiedUtc.AsUnixTime();
-            bw.Write(lastModified);
-            bw.Write((ulong)hash);
-            _hashCache.Put(Encoding.UTF8.GetBytes(file.Normalize()), ms.ToArray());
+            _hashCollection.Upsert(new HashCacheEntry
+            {
+                Hash = (ulong)hash, LastModified = lastModified, Path = file.Normalize()
+            });
         }
 
         public static async Task<Hash> FileHashCachedAsync(this AbsolutePath file, bool nullOnIOError = false)

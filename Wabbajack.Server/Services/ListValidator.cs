@@ -1,13 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Crypto.Digests;
-using RocksDbSharp;
 using Wabbajack.BuildServer;
 using Wabbajack.Common;
 using Wabbajack.Lib;

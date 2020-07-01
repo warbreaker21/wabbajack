@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Data.HashFunction.xxHash;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -9,29 +7,25 @@ using System.Linq;
 using System.Net.Http;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Alphaleonis.Win32.Filesystem;
 using ICSharpCode.SharpZipLib.BZip2;
 using IniParser;
 using IniParser.Model.Configuration;
 using IniParser.Parser;
+using LiteDB;
+using LiteDB.Engine;
 using Microsoft.Win32;
-using Newtonsoft.Json;
 using ReactiveUI;
-using RocksDbSharp;
 using Wabbajack.Common.StatusFeed;
 using Wabbajack.Common.StatusFeed.Errors;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using Directory = System.IO.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
-using FileInfo = Alphaleonis.Win32.Filesystem.FileInfo;
 using Path = Alphaleonis.Win32.Filesystem.Path;
 
 namespace Wabbajack.Common
@@ -61,8 +55,18 @@ namespace Wabbajack.Common
             Consts.LocalAppDataPath.CreateDirectory();
             Consts.LogsFolder.CreateDirectory();
             
-            var options = new DbOptions().SetCreateIfMissing(true);
-            _hashCache = RocksDb.Open(options, (string)Consts.LocalAppDataPath.Combine("GlobalHashCache.rocksDb"));
+            _hashEngine = new SharedEngine(new EngineSettings {Filename = (string)Consts.LocalAppDataPath.Combine("HashCache.liteDb")});
+            _hashDb = new LiteDatabase(_hashEngine);
+            _hashCollection = _hashDb.GetCollection<HashCacheEntry>("patches");
+            _hashEngine.EnsureIndex("patches", "unique_path", "$.Path", true);
+            
+            _pathEngine =
+                new SharedEngine(new EngineSettings {Filename = (string)Consts.LocalAppDataPath.Combine("PatchCache.liteDb")});
+            _patchDb = new LiteDatabase(_pathEngine);
+            _patchCollection = _patchDb.GetCollection<PatchCacheEntry>("patches");
+            _pathEngine.EnsureIndex("patches", "unique_from_to", "[$.From, $.To]", true);
+            _pathEngine.EnsureIndex("patches", "from", "$.From", false);
+            _pathEngine.EnsureIndex("patches", "to", "$.To", false);
 
             _startTime = DateTime.Now;
 
@@ -109,7 +113,6 @@ namespace Wabbajack.Common
                                                 Observable.FromEventPattern<FileSystemEventHandler, FileSystemEventArgs>(h => watcher.Deleted += h, h => watcher.Deleted -= h).Select(e => (FileEventType.Deleted, e.EventArgs)))
                                        .ObserveOn(RxApp.TaskpoolScheduler);
             watcher.EnableRaisingEvents = true;
-            InitPatches();
         }
 
         private static readonly Subject<IStatusMessage> LoggerSubj = new Subject<IStatusMessage>();
