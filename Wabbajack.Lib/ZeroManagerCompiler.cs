@@ -5,20 +5,27 @@ using System.Threading;
 using System.Threading.Tasks;
 using Wabbajack.Common;
 using Wabbajack.Lib.CompilationSteps;
+using Wabbajack.Lib.Downloaders;
 using Wabbajack.Lib.Validation;
 
 namespace Wabbajack.Lib
 {
     public class ZeroManagerCompiler : ACompiler
     {
-        public ZeroManagerCompiler(AbsolutePath sourcePath, AbsolutePath downloadsFolder, Game compilngGame, string listName) : base(1, sourcePath, downloadsFolder, compilngGame)
+        public ZeroManagerCompiler(AbsolutePath sourcePath, AbsolutePath downloadsFolder, Game compilngGame, string listName, AbsolutePath outputFile) 
+            : base(1, sourcePath, downloadsFolder, compilngGame, outputFile)
         {
             SourcePath = sourcePath;
             DownloadsFolder = downloadsFolder;
             CompilingGame = compilngGame;
             ListName = listName;
             VFSCacheName = $"vfs_cache_{sourcePath.ToString().StringSha256Hex()}".RelativeTo(Consts.LocalAppDataPath);
+            AvailableGames = CompilingGame.MetaData().CanSourceFrom.Cons(CompilingGame).Where(g => g.MetaData().IsInstalled).ToList();
+            GamePath = CompilingGame.MetaData().GameLocation();
+
         }
+
+        public List<Game> AvailableGames { get; set; }
 
         public string ListName { get; set; }
         public Game CompilingGame { get; set; }
@@ -36,9 +43,6 @@ namespace Wabbajack.Lib
 
             if (cancel.IsCancellationRequested) return false;
             
-            if (VFSCacheName.Exists) 
-                await VFS.IntegrateFromFile(VFSCacheName);
-
             List<AbsolutePath> roots;
             roots = new List<AbsolutePath>
             {
@@ -49,7 +53,6 @@ namespace Wabbajack.Lib
 
             if (cancel.IsCancellationRequested) return false;
             await VFS.AddRoots(roots);
-            await VFS.WriteToFile(VFSCacheName);
             
             if (cancel.IsCancellationRequested) return false;
             UpdateTracker.NextStep("Cleaning output folder");
@@ -63,7 +66,6 @@ namespace Wabbajack.Lib
             if (cancel.IsCancellationRequested) return false;
             UpdateTracker.NextStep("Reindexing downloads after meta inferring");
             await VFS.AddRoot(DownloadsFolder);
-            await VFS.WriteToFile(VFSCacheName);
 
             if (cancel.IsCancellationRequested) return false;
             UpdateTracker.NextStep("Pre-validating Archives");
@@ -78,6 +80,26 @@ namespace Wabbajack.Lib
                     IniData = f.WithExtension(Consts.MetaFileExtension).LoadIniFile(),
                     Meta = await f.WithExtension(Consts.MetaFileExtension).ReadAllTextAsync()
                 })).ToList();
+            
+            foreach (var ag in AvailableGames)
+            {
+                var files = await ClientAPI.GetExistingGameFiles(Queue, ag);
+                Utils.Log($"Including {files.Length} stock game files from {ag} as download sources");
+
+                IndexedArchives.AddRange(files.Select(f =>
+                {
+                    var meta = f.State.GetMetaIniString();
+                    var ini = meta.LoadIniString();
+                    var state = (GameFileSourceDownloader.State)f.State;
+                    if (VFS.Index.ByRootPath.TryGetValue(ag.MetaData().GameLocation().Combine(state.GameFile),
+                        out var vf))
+                    {
+                        return new IndexedArchive(vf) {IniData = ini, Meta = meta,};
+                    }
+
+                    return null;
+                }).Where(f => f != null).Select(f => f!));
+            }
 
             
             UpdateTracker.NextStep("Finding Install Files");
@@ -92,6 +114,12 @@ namespace Wabbajack.Lib
                     
                     return new RawSourceFile(VFS.Index.ByRootPath[p], p.RelativeTo(SourcePath));
                 });
+            
+            var gameFiles = GamePath.EnumerateFiles()
+                .Where(p => p.IsFile)
+                .Where(p => p.Extension!= Consts.HashFileExtension)
+                .Select(p => new RawSourceFile(VFS.Index.ByRootPath[p],
+                    Consts.GameFolderFilesDir.Combine(p.RelativeTo(GamePath))));
 
             IndexedFiles = IndexedArchives.SelectMany(f => f.File.ThisAndAllChildren)
                 .OrderBy(f => f.NestingFactor)
@@ -178,7 +206,6 @@ namespace Wabbajack.Lib
         public override AbsolutePath VFSCacheName { get; }
         public override ModManager ModManager { get; }
         public override AbsolutePath GamePath { get; }
-        public override AbsolutePath ModListOutputFile { get; }
         public override IEnumerable<ICompilationStep> GetStack()
         {
             throw new System.NotImplementedException();

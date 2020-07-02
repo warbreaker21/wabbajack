@@ -96,7 +96,7 @@ namespace Wabbajack.Lib.Downloaders
 
             public override string[] GetMetaIni()
             {
-                return new[] {"[General]", $"gameName={Game.MetaData().MO2ArchiveName}", $"gameFile={GameFile}"};
+                return new[] {"[General]", $"gameName={Game.MetaData().MO2ArchiveName ?? Game.ToString()}", $"gameFile={GameFile}"};
             }
 
         }

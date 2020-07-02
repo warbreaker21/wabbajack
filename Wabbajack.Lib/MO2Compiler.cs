@@ -35,8 +35,6 @@ namespace Wabbajack.Lib
         /// All games available for sourcing during compilation (including the Compiling Game)
         /// </summary>
         public List<Game> AvailableGames { get; }
-        public override AbsolutePath ModListOutputFile { get; }
-
         public override AbsolutePath VFSCacheName => 
             Consts.LocalAppDataPath.Combine( 
             $"vfs_compile_cache-2-{Path.Combine((string)MO2Folder ?? "Unknown", "ModOrganizer.exe").StringSha256Hex()}.bin");
@@ -53,14 +51,13 @@ namespace Wabbajack.Lib
         public HashSet<string> SelectedProfiles { get; set; } = new HashSet<string>();
 
         public MO2Compiler(AbsolutePath mo2Folder, string mo2Profile, AbsolutePath outputFile)
-            : base(steps: 20, mo2Folder, default, default)
+            : base(steps: 20, mo2Folder, default, default, outputFile)
         {
             MO2Folder = mo2Folder;
             MO2Profile = mo2Profile;
             MO2Ini = MO2Folder.Combine("ModOrganizer.ini").LoadIniFile();
             var mo2game = (string)MO2Ini.General.gameName;
             GamePath = new AbsolutePath((string)MO2Ini.General.gamePath.Replace("\\\\", "\\"));
-            ModListOutputFile = outputFile;
 
             AvailableGames = CompilingGame.MetaData().CanSourceFrom.Cons(CompilingGame).Where(g => g.MetaData().IsInstalled).ToList();
             base.DownloadsPath = MO2DownloadsFolder;

@@ -41,7 +41,7 @@ namespace Wabbajack.Lib
         public abstract AbsolutePath GamePath { get; }
 
         public virtual AbsolutePath ModListOutputFolder => ((RelativePath)"output_folder").RelativeToEntryPoint();
-        public abstract AbsolutePath ModListOutputFile { get; }
+        public AbsolutePath ModListOutputFile { get; set; }
 
         public bool IgnoreMissingFiles { get; set; }
 
@@ -55,12 +55,13 @@ namespace Wabbajack.Lib
         
         public Dictionary<Hash, IEnumerable<VirtualFile>> IndexedFiles = new Dictionary<Hash, IEnumerable<VirtualFile>>();
 
-        public ACompiler(int steps, AbsolutePath sourcePath, AbsolutePath downloadsPath, Game compilingGame)
+        public ACompiler(int steps, AbsolutePath sourcePath, AbsolutePath downloadsPath, Game compilingGame, AbsolutePath modlistOutputFile)
             : base(steps)
         {
             SourcePath = sourcePath;
             DownloadsPath = downloadsPath;
             CompilingGame = compilingGame;
+            ModListOutputFile = modlistOutputFile;
         }
 
         public Game CompilingGame { get; set; }

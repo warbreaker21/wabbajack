@@ -56,7 +56,9 @@ namespace Wabbajack.Test
         
         protected async Task<ZeroManagerCompiler> ConfigureAndRunCompilerZeroManager()
         {
-            var compiler = new ZeroManagerCompiler(utils.SourceFolder, utils.DownloadsFolder, utils.Game, utils.ListName);
+            var outFile = utils.ListName.RelativeTo(AbsolutePath.EntryPoint).WithExtension(Consts.ModListExtension);
+            var compiler = new ZeroManagerCompiler(utils.SourceFolder, utils.DownloadsFolder, utils.Game,
+                utils.ListName, outFile);
             Assert.True(await compiler.Begin());
             return compiler;
         }

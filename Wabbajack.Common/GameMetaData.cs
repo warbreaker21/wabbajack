@@ -446,7 +446,8 @@ namespace Wabbajack.Common
                 RequiredFiles = new List<string>	
                 {	
                     "bin\\x64\\witcher3.exe"	
-                }	
+                },
+                MainExecutable = @"bin\x64\witcher3.exe"
             }	
         },
         };
