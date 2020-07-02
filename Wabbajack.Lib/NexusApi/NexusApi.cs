@@ -391,5 +391,29 @@ namespace Wabbajack.Lib.NexusApi
         {
             return new Uri($"https://www.nexusmods.com/{state.Game.MetaData().NexusName}/mods/{state.ModID}?tab=files");
         }
+
+        public async Task<AbstractDownloadState?> InferMeta(AbsolutePath absolutePath, Game game)
+        {
+            // Nexus requires lowercased MD5 :facepalm:
+            var md5 = (await absolutePath.MD5HashAsync())!.ToLower();
+            foreach (var gameData in game.MetaData().CanSourceFrom.Cons(game).Reverse())
+            {
+                var metaData = gameData.MetaData();
+                try
+                {
+                    var result =
+                        await Get<MD5Response>(
+                            $"https://api.nexusmods.com/v1/games/{metaData.NexusName}/mods/md5_search/{md5}.json");
+                    return new NexusDownloader.State
+                    {
+                        Game = gameData, ModID = long.Parse(result.mod!.mod_id), FileID = result.file_details!.file_id
+                    };
+                }
+                catch (HttpException)
+                {
+                }
+            }
+            return null;
+        }
     }
 }

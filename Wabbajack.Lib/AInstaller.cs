@@ -442,6 +442,21 @@ namespace Wabbajack.Lib
             ModList.Directives = indexed.Values.ToList();
 
         }
+        
+        protected async Task InstallIncludedDownloadMetas()
+        {
+            await ModList.Directives
+                .OfType<ArchiveMeta>()
+                .PMap(Queue, async directive =>
+                {
+                    Status($"Writing included .meta file {directive.To}");
+                    var outPath = DownloadFolder.Combine(directive.To);
+                    if (outPath.IsFile) await outPath.DeleteAsync();
+                    await outPath.WriteAllBytesAsync(await LoadBytesFromPath(directive.SourceDataID));
+                });
+        }
+        
+        
     }
 
     public class NotEnoughDiskSpaceException : Exception

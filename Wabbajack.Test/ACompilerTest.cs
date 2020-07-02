@@ -62,9 +62,11 @@ namespace Wabbajack.Test
             Assert.True(await compiler.Begin());
             return compiler;
         }
-        protected async Task CompileAndInstallZeroManager()
+        protected async Task<ModList> CompileAndInstallZeroManager()
         {
             var compiler = await ConfigureAndRunCompilerZeroManager();
+            await Install(compiler);
+            return compiler.ModList;
         }
 
 
@@ -86,6 +88,23 @@ namespace Wabbajack.Test
                 parameters: CreateDummySystemParameters());
             installer.WarnOnOverwrite = false;
             installer.GameFolder = utils.GameFolder;
+            Utils.Log("Starting Install");
+            await installer.Begin();
+        }
+        
+        protected async Task Install(ZeroManagerCompiler compiler)
+        {
+            Utils.Log("Loading Modlist");
+            var modlist = AInstaller.LoadFromFile(compiler.ModListOutputFile);
+            Utils.Log("Constructing Installer");
+            var installer = new ZeroManagerInstaller(
+                archive: compiler.ModListOutputFile,
+                modList: modlist,
+                outputFolder: utils.InstallFolder,
+                downloadFolder: utils.DownloadsFolder,
+                game: modlist.GameType,
+                warnOnOverride:false);
+            installer.WarnOnOverwrite = false;
             Utils.Log("Starting Install");
             await installer.Begin();
         }

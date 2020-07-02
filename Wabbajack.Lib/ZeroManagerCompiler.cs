@@ -18,7 +18,7 @@ namespace Wabbajack.Lib
             SourcePath = sourcePath;
             DownloadsFolder = downloadsFolder;
             CompilingGame = compilngGame;
-            ListName = listName;
+            ModListName = listName;
             VFSCacheName = $"vfs_cache_{sourcePath.ToString().StringSha256Hex()}".RelativeTo(Consts.LocalAppDataPath);
             AvailableGames = CompilingGame.MetaData().CanSourceFrom.Cons(CompilingGame).Where(g => g.MetaData().IsInstalled).ToList();
             GamePath = CompilingGame.MetaData().GameLocation();
@@ -27,13 +27,12 @@ namespace Wabbajack.Lib
 
         public List<Game> AvailableGames { get; set; }
 
-        public string ListName { get; set; }
         public Game CompilingGame { get; set; }
         public AbsolutePath DownloadsFolder { get; set; }
 
         protected override async Task<bool> _Begin(CancellationToken cancel)
         {
-            await Metrics.Send("begin_compiling", ListName);
+            await Metrics.Send("begin_compiling", ModListName!);
             if (cancel.IsCancellationRequested) return false;
             Queue.SetActiveThreadsObservable(ConstructDynamicNumThreads(await RecommendQueueSize()));
             UpdateTracker.Reset();

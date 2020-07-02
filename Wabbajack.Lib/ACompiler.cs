@@ -12,6 +12,7 @@ using Wabbajack.Common;
 using Wabbajack.Lib.CompilationSteps;
 using Wabbajack.Lib.Downloaders;
 using Wabbajack.Lib.ModListRegistry;
+using Wabbajack.Lib.NexusApi;
 using Wabbajack.VirtualFileSystem;
 
 namespace Wabbajack.Lib
@@ -347,14 +348,18 @@ namespace Wabbajack.Lib
 
                 var meta = await ClientAPI.InferDownloadState(vf.Hash);
 
-
-
                 if (meta == null)
                 {
-                    await vf.AbsoluteName.WithExtension(Consts.MetaFileExtension).WriteAllLinesAsync(
-                        "[General]", 
-                        "unknownArchive=true");
-                    return;
+                    var nexus = await NexusApiClient.Get();
+
+                    meta = await nexus.InferMeta(f, CompilingGame);
+                    if (meta == null)
+                    {
+                        await vf.AbsoluteName.WithExtension(Consts.MetaFileExtension).WriteAllLinesAsync(
+                            "[General]",
+                            "unknownArchive=true");
+                        return;
+                    }
                 }
 
                 Utils.Log($"Inferred .meta for {vf.FullPath.FileName}, writing to disk");

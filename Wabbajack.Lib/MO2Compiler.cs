@@ -58,7 +58,6 @@ namespace Wabbajack.Lib
             MO2Ini = MO2Folder.Combine("ModOrganizer.ini").LoadIniFile();
             var mo2game = (string)MO2Ini.General.gameName;
             GamePath = new AbsolutePath((string)MO2Ini.General.gamePath.Replace("\\\\", "\\"));
-
             AvailableGames = CompilingGame.MetaData().CanSourceFrom.Cons(CompilingGame).Where(g => g.MetaData().IsInstalled).ToList();
             base.DownloadsPath = MO2DownloadsFolder;
             base.CompilingGame = GameRegistry.GetByFuzzyName(mo2game).Game;

@@ -423,6 +423,7 @@ namespace Wabbajack.Common
                 await file.CopyToAsync(dest);
             }
         }
+
     }
 
     [JsonConverter(typeof(Utils.RelativePathConverter))]

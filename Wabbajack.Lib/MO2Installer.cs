@@ -225,19 +225,6 @@ namespace Wabbajack.Lib
             }
         }
 
-        private async Task InstallIncludedDownloadMetas()
-        {
-            await ModList.Directives
-                   .OfType<ArchiveMeta>()
-                   .PMap(Queue, async directive =>
-                   {
-                       Status($"Writing included .meta file {directive.To}");
-                       var outPath = DownloadFolder.Combine(directive.To);
-                       if (outPath.IsFile) await outPath.DeleteAsync();
-                       await outPath.WriteAllBytesAsync(await LoadBytesFromPath(directive.SourceDataID));
-                   });
-        }
-
         private async ValueTask ValidateGameESMs()
         {
             foreach (var esm in ModList.Directives.OfType<CleanedESM>().ToList())
@@ -287,51 +274,7 @@ namespace Wabbajack.Lib
             }
         }
 
-        private async Task InstallIncludedFiles()
-        {
-            Info("Writing inline files");
-            await ModList.Directives
-                .OfType<InlineFile>()
-                .PMap(Queue, async directive =>
-                {
-                    Status($"Writing included file {directive.To}");
-                    var outPath = OutputFolder.Combine(directive.To);
-                    await outPath.DeleteAsync();
 
-                    switch (directive)
-                    {
-                        case RemappedInlineFile file:
-                            await WriteRemappedFile(file);
-                            break;
-                        case CleanedESM esm:
-                            await GenerateCleanedESM(esm);
-                            break;
-                        default:
-                            await outPath.WriteAllBytesAsync(await LoadBytesFromPath(directive.SourceDataID));
-                            break;
-                    }
-                });
-        }
-
-        private async Task GenerateCleanedESM(CleanedESM directive)
-        {
-            var filename = directive.To.FileName;
-            var gameFile = GameFolder!.Value.Combine((RelativePath)"Data", filename);
-            Info($"Generating cleaned ESM for {filename}");
-            if (!gameFile.Exists) throw new InvalidDataException($"Missing {filename} at {gameFile}");
-            Status($"Hashing game version of {filename}");
-            var sha = await gameFile.FileHashCachedAsync();
-            if (sha != directive.SourceESMHash)
-                throw new InvalidDataException(
-                    $"Cannot patch {filename} from the game folder because the hashes do not match. Have you already cleaned the file?");
-
-            var patchData = await LoadBytesFromPath(directive.SourceDataID);
-            var toFile = OutputFolder.Combine(directive.To);
-            Status($"Patching {filename}");
-            await using var output = await toFile.Create();
-            await using var input = await gameFile.OpenRead();
-            Utils.ApplyPatch(input, () => new MemoryStream(patchData), output);
-        }
 
         private void SetScreenSizeInPrefs()
         {
@@ -379,6 +322,52 @@ namespace Wabbajack.Lib
                     Utils.Log($"Skipping screen size remap for {file} due to parse error.");
                 }
             }
+        }
+        
+                private async Task InstallIncludedFiles()
+        {
+            Info("Writing inline files");
+            await ModList.Directives
+                .OfType<InlineFile>()
+                .PMap(Queue, async directive =>
+                {
+                    Status($"Writing included file {directive.To}");
+                    var outPath = OutputFolder.Combine(directive.To);
+                    await outPath.DeleteAsync();
+
+                    switch (directive)
+                    {
+                        case RemappedInlineFile file:
+                            await WriteRemappedFile(file);
+                            break;
+                        case CleanedESM esm:
+                            await GenerateCleanedESM(esm);
+                            break;
+                        default:
+                            await outPath.WriteAllBytesAsync(await LoadBytesFromPath(directive.SourceDataID));
+                            break;
+                    }
+                });
+        }
+
+        private async Task GenerateCleanedESM(CleanedESM directive)
+        {
+            var filename = directive.To.FileName;
+            var gameFile = GameFolder!.Value.Combine((RelativePath)"Data", filename);
+            Info($"Generating cleaned ESM for {filename}");
+            if (!gameFile.Exists) throw new InvalidDataException($"Missing {filename} at {gameFile}");
+            Status($"Hashing game version of {filename}");
+            var sha = await gameFile.FileHashCachedAsync();
+            if (sha != directive.SourceESMHash)
+                throw new InvalidDataException(
+                    $"Cannot patch {filename} from the game folder because the hashes do not match. Have you already cleaned the file?");
+
+            var patchData = await LoadBytesFromPath(directive.SourceDataID);
+            var toFile = OutputFolder.Combine(directive.To);
+            Status($"Patching {filename}");
+            await using var output = await toFile.Create();
+            await using var input = await gameFile.OpenRead();
+            Utils.ApplyPatch(input, () => new MemoryStream(patchData), output);
         }
 
         private async Task WriteRemappedFile(RemappedInlineFile directive)

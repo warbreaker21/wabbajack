@@ -220,5 +220,22 @@ namespace Wabbajack.Common
             }
         }
 
+        public static async Task<string?> MD5HashAsync(this AbsolutePath file, bool nullOnIOError = false)
+        {
+            try
+            {
+                await using var fs = await file.OpenRead();
+                await using var hs = new StatusFileStream(fs, $"MD5 Hashing {file}");
+                using var md5 = MD5.Create();
+                var value = md5.ComputeHash(hs);
+                return value.ToHex();
+            }
+            catch (IOException)
+            {
+                if (nullOnIOError) return null;
+                throw;
+            }
+        }
+
     }
 }
