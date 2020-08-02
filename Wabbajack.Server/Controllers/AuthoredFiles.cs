@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -61,7 +62,7 @@ namespace Wabbajack.BuildServer.Controllers
                 return BadRequest($"Hashes don't match for index {index}. Sizes ({ms.Length} vs {part.Size}). Hashes ({hash} vs {part.Hash}");
 
             ms.Position = 0;
-            await UploadAsync(ms, $"{definition.MungedName}/parts/{index}");
+            await UploadAsync(ms, $"{definition.MungedName}/parts/{index}", BunnyStorageArea.AuthoredFiles);
             return Ok(part.Hash.ToBase64());
         }
         
@@ -99,22 +100,22 @@ namespace Wabbajack.BuildServer.Controllers
                 definition.ToJson(gz);
             }
             ms.Position = 0;
-            await UploadAsync(ms, $"{definition.MungedName}/definition.json.gz");
+            await UploadAsync(ms, $"{definition.MungedName}/definition.json.gz", BunnyStorageArea.AuthoredFiles);
             
             return Ok($"https://{_settings.BunnyCDN_StorageZone}.b-cdn.net/{definition.MungedName}");
         }
 
-        private async Task<FtpClient> GetBunnyCdnFtpClient()
+        private async Task<FtpClient> GetBunnyCdnFtpClient(BunnyStorageArea area)
         {
-            var info = await Utils.FromEncryptedJson<BunnyCdnFtpInfo>("bunny-cdn-ftp-info");
+            var info = await BunnyCdnFtpInfo.GetFtpInfo(area);
             var client = new FtpClient(info.Hostname) {Credentials = new NetworkCredential(info.Username, info.Password)};
             await client.ConnectAsync();
             return client;
         }
 
-        private async Task UploadAsync(Stream stream, string path)
+        private async Task UploadAsync(Stream stream, string path, BunnyStorageArea area)
         {
-            using var client = await GetBunnyCdnFtpClient();
+            using var client = await GetBunnyCdnFtpClient(area);
             await client.UploadAsync(stream, path);
         }
 
@@ -138,7 +139,7 @@ namespace Wabbajack.BuildServer.Controllers
         {
             try
             {
-                using var client = await GetBunnyCdnFtpClient();
+                using var client = await GetBunnyCdnFtpClient(BunnyStorageArea.AuthoredFiles);
                 await client.DeleteDirectoryAsync(path);
             }
             catch (Exception)

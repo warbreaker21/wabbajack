@@ -124,7 +124,7 @@ namespace Wabbajack.Server
             app.UseService<NexusKeyMaintainance>();
             app.UseService<PatchBuilder>();
             app.UseService<CDNMirrorList>();
-            app.UseService<NexusPermissionsUpdater>();
+            //app.UseService<NexusPermissionsUpdater>();
 
             app.Use(next =>
             {

@@ -658,13 +658,26 @@ GO
 
 /****** Object:  Table [dbo].[NexusModPermissions]    Script Date: 7/25/2020 11:42:04 AM ******/
 CREATE TABLE [dbo].[NexusModPermissions](
-[NexusGameID] [int] NOT NULL,
-[ModID] [bigint] NOT NULL,
-[Permissions] [int] NOT NULL,
+                                            [NexusGameID] [int] NOT NULL,
+                                            [ModID] [bigint] NOT NULL,
+                                            [Permissions] [int] NOT NULL,
+                                            CONSTRAINT [PK_NexusModPermissions] PRIMARY KEY CLUSTERED
+                                                (
+                                                 [NexusGameID] ASC,
+                                                 [ModID] ASC
+                                                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[MirroredArchives]    Script Date: 7/25/2020 11:42:04 AM ******/
+CREATE TABLE [dbo].[MirroredArchives](
+[Hash] [bigint] NOT NULL,
+[Created] [DateTime] NOT NULL,
+[Uploaded] [DateTime] NULL,
+[Rationale] nvarchar(max) not NULL
 CONSTRAINT [PK_NexusModPermissions] PRIMARY KEY CLUSTERED
     (
-     [NexusGameID] ASC,
-     [ModID] ASC
+     [Hash] ASC
         )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
