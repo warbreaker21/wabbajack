@@ -1,4 +1,5 @@
 ﻿using System.Data.SqlClient;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Wabbajack.BuildServer;
@@ -9,13 +10,19 @@ namespace Wabbajack.Server.DataLayer
     public partial class SqlService
     {
         private AppSettings _settings;
-        public ServerDBContext Context;
+        private AsyncLocal<ServerDBContext> _context = new AsyncLocal<ServerDBContext>();
+        public ServerDBContext Context
+        {
+            get
+            {
+                return _context.Value ?? (_context.Value = new ServerDBContext(_settings.SqlConnection));
+            }
+        }
         private ILogger<SqlService> _logger;
 
         public SqlService(ILogger<SqlService> logger, AppSettings settings)
         {
             _settings = settings;
-            Context = new ServerDBContext(settings.SqlConnection);
             _logger = logger;
         }
 

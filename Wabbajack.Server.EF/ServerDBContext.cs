@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Xml;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Wabbajack.Common;
+using Wabbajack.Lib.Downloaders;
 using Wabbajack.Lib.NexusApi;
 
 #nullable disable
@@ -52,7 +54,10 @@ namespace Wabbajack.Server.EF
         public virtual DbSet<TarKey> TarKeys { get; set; }
         public virtual DbSet<UploadedFile> UploadedFiles { get; set; }
         public virtual DbSet<VirusScanResult> VirusScanResults { get; set; }
-
+        
+        // Virtual entities (created by direct SQL queries)
+        public virtual DbSet<AggregateMetric> AggregateMetrics { get; set; }
+        
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
@@ -146,11 +151,20 @@ namespace Wabbajack.Server.EF
 
                 entity.Property(e => e.Id).ValueGeneratedNever();
 
+                entity.Property(e => e.Hash)
+                    .HasConversion(e => e == default ? null : (long?)e, e => e == null ? Hash.Empty : Hash.FromLong(e.Value));
+
                 entity.Property(e => e.DownloadFinished)
                     .HasColumnType("datetime")
                     .HasAnnotation("Relational:ColumnType", "datetime");
 
-                entity.Property(e => e.DownloadState).IsRequired();
+                entity.Property(e => e.IsFailed)
+                    .HasColumnType("tinyint")
+                    .HasConversion(e => e.Value ? 1 : 0, i => i == 1);
+
+                entity.Property(e => e.DownloadState)
+                    .HasConversion(e => e.ToJson(false), e => e.FromJsonString<AbstractDownloadState>())
+                    .IsRequired();
 
                 entity.Property(e => e.Downloader)
                     .IsRequired()
@@ -404,8 +418,10 @@ namespace Wabbajack.Server.EF
                     .IsRequired()
                     .HasConversion(v => v.ToJson(true),
                         v => v.FromJsonString<ModInfo>());
+                
 
                 entity.Property(e => e.LastChecked)
+                    .HasConversion(e => e, e => DateTime.SpecifyKind(e, DateTimeKind.Utc))
                     .HasColumnType("datetime")
                     .HasAnnotation("Relational:ColumnType", "datetime");
             });
@@ -483,6 +499,13 @@ namespace Wabbajack.Server.EF
                 entity.HasKey(x => x.Hash);
 
                 entity.Property(e => e.Hash).ValueGeneratedNever();
+            });
+            
+            // Virtual Entities
+
+            modelBuilder.Entity<AggregateMetric>(entity =>
+            {
+                entity.HasKey(x => new {x.Date, x.Subject});
             });
 
             OnModelCreatingPartial(modelBuilder);

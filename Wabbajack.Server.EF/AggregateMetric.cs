@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Wabbajack.Server.DTOs
+namespace Wabbajack.Server.EF
 {
     public class AggregateMetric
     {

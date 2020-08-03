@@ -162,8 +162,17 @@ namespace Wabbajack.BuildServer.Test
             await sql.AddNexusModInfo(Game.Morrowind, Int64.MaxValue - 3, now, new ModInfo() {name = "test"});
             var info = await sql.Context.NexusModInfos.Where(m => m.Game == Game.Morrowind && m.ModId == Int64.MaxValue - 3 && m.LastChecked == now).FirstOrDefaultAsync();
             Assert.NotNull(info);
+            Assert.Equal(now.Day, info.LastChecked.Day);
+            Assert.Equal(now.Hour, info.LastChecked.Hour);
+            Assert.Equal(DateTimeKind.Utc, info.LastChecked.Kind);
+            
+            /*now = DateTime.Parse("2013-10-08T12:14:39.721+01:00");
+            var sql = Fixture.GetService<SqlService>();
+            await sql.AddNexusModInfo(Game.Morrowind, Int64.MaxValue - 3, now, new ModInfo() {name = "test"});
+            var info = await sql.Context.NexusModInfos.Where(m => m.Game == Game.Morrowind && m.ModId == Int64.MaxValue - 3 && m.LastChecked == now).FirstOrDefaultAsync();
+            Assert.NotNull(info);
             Assert.Equal(now, info.LastChecked);
-            Assert.True(info.LastChecked.Kind == DateTimeKind.Utc);
+            Assert.True(info.LastChecked.Kind == DateTimeKind.Utc);*/
         }
     }
 }

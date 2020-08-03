@@ -60,11 +60,11 @@ namespace Wabbajack.Server.Test
 
             await sql.EnqueueDownload(oldArchive);
             var oldDownload = await sql.GetNextPendingDownload();
-            await oldDownload.Finish(sql);
+            await oldDownload.Finish(sql.Context);
 
             await sql.EnqueueDownload(newArchive);
             var newDownload = await sql.GetNextPendingDownload();
-            await newDownload.Finish(sql);
+            await newDownload.Finish(sql.Context);
             
 
             await Assert.ThrowsAsync<HttpException>(async () => await ClientAPI.GetModUpgrade(oldArchive, newArchive, TimeSpan.Zero, TimeSpan.Zero));
@@ -105,7 +105,7 @@ namespace Wabbajack.Server.Test
             await IngestData(archiver, oldFileData);
             await sql.EnqueueDownload(oldArchive);
             var oldDownload = await sql.GetNextPendingDownload();
-            await oldDownload.Finish(sql);
+            await oldDownload.Finish(sql.Context);
             
             
             // Now update the file

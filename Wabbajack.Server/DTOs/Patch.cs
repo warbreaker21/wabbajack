@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualBasic;
 using Wabbajack.Common;
 using Wabbajack.Server.DataLayer;
+using Wabbajack.Server.EF;
 
 namespace Wabbajack.Server.DTOs
 {

@@ -5,7 +5,6 @@ using Wabbajack.Common;
 using Wabbajack.Lib;
 using Xunit;
 using Xunit.Abstractions;
-using Wabbajack.Common;
 
 namespace Wabbajack.Server.Test
 {

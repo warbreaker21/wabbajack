@@ -15,8 +15,10 @@ using Wabbajack.Lib.ModListRegistry;
 using Wabbajack.Server;
 using Wabbajack.Server.DataLayer;
 using Wabbajack.Server.DTOs;
+using Wabbajack.Server.EF;
 using Xunit;
 using Xunit.Abstractions;
+using ModList = Wabbajack.Lib.ModList;
 
 namespace Wabbajack.BuildServer.Test
 {

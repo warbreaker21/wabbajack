@@ -11,6 +11,7 @@ using Wabbajack.Common;
 using Wabbajack.Server;
 using Wabbajack.Server.DataLayer;
 using Wabbajack.Server.DTOs;
+using Wabbajack.Server.EF;
 using WebSocketSharp;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 

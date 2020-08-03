@@ -89,13 +89,13 @@ namespace Wabbajack.BuildServer.Controllers
             {
                 if (patch.PatchSize != 0)
                 {
-                    _logger.Log(LogLevel.Information, $"Upgrade requested from {oldDownload.Archive.Hash} to {newDownload.Archive.Hash} patch Found");
+                    _logger.Log(LogLevel.Information, $"Upgrade requested from {oldDownload.Hash} to {newDownload.Hash} patch Found");
                     await _sql.MarkPatchUsage(oldDownload.Id, newDownload.Id);
                     return
                         Ok(
                             $"https://{_settings.BunnyCDN_StorageZone}.b-cdn.net/{Consts.ArchiveUpdatesCDNFolder}/{request.OldArchive.Hash.ToHex()}_{request.NewArchive.Hash.ToHex()}");
                 }
-                _logger.Log(LogLevel.Information, $"Upgrade requested from {oldDownload.Archive.Hash} to {newDownload.Archive.Hash} patch found but was failed");
+                _logger.Log(LogLevel.Information, $"Upgrade requested from {oldDownload.Hash} to {newDownload.Hash} patch found but was failed");
 
                 return NotFound("Patch creation failed");
             }
@@ -109,7 +109,7 @@ namespace Wabbajack.BuildServer.Controllers
                 await _quickSync.Notify<PatchBuilder>();
             }
             
-            _logger.Log(LogLevel.Information, $"Upgrade requested from {oldDownload.Archive.Hash} to {newDownload.Archive.Hash} patch found is processing");
+            _logger.Log(LogLevel.Information, $"Upgrade requested from {oldDownload.Hash} to {newDownload.Hash} patch found is processing");
             // Still processing
             return Accepted();
         }
@@ -122,7 +122,7 @@ namespace Wabbajack.BuildServer.Controllers
             var hash = Hash.FromHex(hashAsHex);
 
             var patches = await _sql.PatchesForSource(hash);
-            return Ok(patches.Select(p => p.Dest.Archive).ToList().ToJson());
+            return Ok(patches.Select(p => p.Dest.ToArchive()).ToList().ToJson());
         }
       
 

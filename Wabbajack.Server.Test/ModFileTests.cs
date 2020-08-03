@@ -32,7 +32,7 @@ namespace Wabbajack.Server.Test
 
             await sql.EnqueueDownload(archive);
             var dld = await sql.GetNextPendingDownload();
-            await dld.Finish(sql);
+            await dld.Finish(sql.Context);
 
 
             var state = await ClientAPI.InferDownloadState(archive.Hash);

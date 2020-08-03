@@ -47,28 +47,28 @@ namespace Wabbajack.Server.Services
                 {
 
                     _logger.LogInformation(
-                        $"Building patch from {patch.Src.Archive.State.PrimaryKeyString} to {patch.Dest.Archive.State.PrimaryKeyString}");
+                        $"Building patch from {patch.Src.PrimaryKeyString} to {patch.Dest.PrimaryKeyString}");
                     await _discordWebHook.Send(Channel.Spam,
                         new DiscordMessage
                         {
                             Content =
-                                $"Building patch from {patch.Src.Archive.State.PrimaryKeyString} to {patch.Dest.Archive.State.PrimaryKeyString}"
+                                $"Building patch from {patch.Src.PrimaryKeyString} to {patch.Dest.PrimaryKeyString}"
                         });
 
-                    if (patch.Src.Archive.Hash == patch.Dest.Archive.Hash)
+                    if (patch.Src.Hash == patch.Dest.Hash)
                     {
                         await patch.Fail(_sql, "Hashes match");
                         continue;
                     }
 
-                    if (patch.Src.Archive.Size > 2_500_000_000 || patch.Dest.Archive.Size > 2_500_000_000)
+                    if (patch.Src.Size > 2_500_000_000 || patch.Dest.Size > 2_500_000_000)
                     {
                         await patch.Fail(_sql, "Too large to patch");
                         continue;
                     }
 
-                    _maintainer.TryGetPath(patch.Src.Archive.Hash, out var srcPath);
-                    _maintainer.TryGetPath(patch.Dest.Archive.Hash, out var destPath);
+                    _maintainer.TryGetPath(patch.Src.Hash.Value, out var srcPath);
+                    _maintainer.TryGetPath(patch.Dest.Hash.Value, out var destPath);
 
                     await using var sigFile = new TempFile();
                     await using var patchFile = new TempFile();
@@ -88,7 +88,7 @@ namespace Wabbajack.Server.Services
                         new DiscordMessage
                         {
                             Content =
-                                $"Built {size.ToFileSizeString()} patch from {patch.Src.Archive.State.PrimaryKeyString} to {patch.Dest.Archive.State.PrimaryKeyString}"
+                                $"Built {size.ToFileSizeString()} patch from {patch.Src.PrimaryKeyString} to {patch.Dest.PrimaryKeyString}"
                         });
                 }
                 catch (Exception ex)
@@ -99,7 +99,7 @@ namespace Wabbajack.Server.Services
                         new DiscordMessage
                         {
                             Content =
-                                $"Failure building patch from {patch.Src.Archive.State.PrimaryKeyString} to {patch.Dest.Archive.State.PrimaryKeyString}"
+                                $"Failure building patch from {patch.Src.PrimaryKeyString} to {patch.Dest.PrimaryKeyString}"
                         });                    
 
                 }
@@ -119,7 +119,7 @@ namespace Wabbajack.Server.Services
 
         private static string PatchName(Patch patch)
         {
-            return PatchName(patch.Src.Archive.Hash, patch.Dest.Archive.Hash);
+            return PatchName(patch.Src.Hash.Value, patch.Dest.Hash.Value);
 
         }
 
@@ -135,13 +135,13 @@ namespace Wabbajack.Server.Services
 
             foreach (var patch in patches)
             {
-                _logger.LogInformation($"Cleaning patch {patch.Src.Archive.Hash} -> {patch.Dest.Archive.Hash}");
+                _logger.LogInformation($"Cleaning patch {patch.Src.Hash} -> {patch.Dest.Hash}");
                 
                 await _discordWebHook.Send(Channel.Spam,
                     new DiscordMessage
                     {
                         Content =
-                            $"Removing {patch.PatchSize.FileSizeToString()} patch from {patch.Src.Archive.State.PrimaryKeyString} to {patch.Dest.Archive.State.PrimaryKeyString} due it no longer being required by curated lists"
+                            $"Removing {patch.PatchSize.FileSizeToString()} patch from {patch.Src.PrimaryKeyString} to {patch.Dest.PrimaryKeyString} due it no longer being required by curated lists"
                     });
 
                 if (!await DeleteFromCDN(client, PatchName(patch)))

@@ -30,7 +30,7 @@ namespace Wabbajack.BuildServer.Test
             
             Assert.Equal(id, toRun.Id);
             
-            await toRun.Finish(service);
+            await toRun.Finish(service.Context);
             await service.UpdatePendingDownload(toRun);
 
             toRun = await service.GetNextPendingDownload();
@@ -50,7 +50,7 @@ namespace Wabbajack.BuildServer.Test
             await _sql.EnqueueDownload(archive);
             
             var download = await _sql.GetNextPendingDownload();
-            await download.Finish(_sql);
+            await download.Finish(_sql.Context);
             Assert.Null(await _sql.GetNextPendingDownload());
             
             var found = await _sql.GetArchiveDownload(archive.State.PrimaryKeyString, archive.Hash, archive.Size);
@@ -71,7 +71,7 @@ namespace Wabbajack.BuildServer.Test
                 var job = await service.GetNextPendingDownload();
                 if (job == null) break;
 
-                await job.Fail(service, "Canceled");
+                await job.Fail(service.Context, "Canceled");
             }
         }
     }

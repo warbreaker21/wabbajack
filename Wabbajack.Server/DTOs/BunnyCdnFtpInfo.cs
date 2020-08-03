@@ -20,7 +20,7 @@ namespace Wabbajack.Server.DTOs
 
         public static async Task<BunnyCdnFtpInfo> GetFtpInfo(BunnyStorageArea area)
         {
-            return (await Utils.FromEncryptedJson<Dictionary<string, BunnyCdnFtpInfo>>("bunny-cdn-ftp-info"))[area.ToString()];
+            return (await Utils.FromEncryptedJson<Dictionary<string, BunnyCdnFtpInfo>>("bunnycdn"))[area.ToString()];
         }
     }
 }

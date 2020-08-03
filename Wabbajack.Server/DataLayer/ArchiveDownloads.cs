@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Wabbajack.Common;
 using Wabbajack.Lib;
 using Wabbajack.Lib.AuthorApi;
 using Wabbajack.Lib.Downloaders;
 using Wabbajack.Server.DTOs;
+using Wabbajack.Server.EF;
 
 namespace Wabbajack.Server.DataLayer
 {
@@ -36,154 +38,78 @@ namespace Wabbajack.Server.DataLayer
         public async Task<Guid> EnqueueDownload(Archive a)
         {
             await using var conn = await Open();
-            var Id = Guid.NewGuid();
-            await conn.ExecuteAsync(
-                "INSERT INTO ArchiveDownloads (Id, PrimaryKeyString, Size, Hash, DownloadState, Downloader) VALUES (@Id, @PrimaryKeyString, @Size, @Hash, @DownloadState, @Downloader)",
-                new
-                {
-                    Id = Id,
-                    PrimaryKeyString = a.State.PrimaryKeyString,
-                    Size = a.Size == 0 ? null : (long?)a.Size,
-                    Hash = a.Hash == default ? null : (Hash?)a.Hash,
-                    DownloadState = a.State,
-                    Downloader = AbstractDownloadState.TypeToName[a.State.GetType()],
-                });
-            return Id;
+            var id = Guid.NewGuid();
+
+            Context.Add(new ArchiveDownload
+            {
+                Id = id,
+                PrimaryKeyString = a.State.PrimaryKeyString,
+                Size = a.Size == 0 ? null : (long?)a.Size,
+                Hash = a.Hash,
+                DownloadState = a.State,
+                Downloader = AbstractDownloadState.TypeToName[a.State.GetType()],
+            });
+            await Context.SaveChangesAsync();
+            return id;
         }
 
         public async Task<HashSet<(Hash Hash, string PrimaryKeyString)>> GetAllArchiveDownloads()
         {
-            await using var conn = await Open();
-            return (await conn.QueryAsync<(Hash, string)>("SELECT Hash, PrimaryKeyString FROM ArchiveDownloads")).ToHashSet();
+            return (await Context.ArchiveDownloads.Select(e => new {Hash = e.Hash.Value, e.PrimaryKeyString}).ToListAsync())
+                .Select(e => (e.Hash, e.PrimaryKeyString))
+                .ToHashSet();
         }
 
         
         public async Task<ArchiveDownload> GetArchiveDownload(Guid id)
         {
-            await using var conn = await Open();
-            var result = await conn.QueryFirstOrDefaultAsync<(Guid, long?, Hash?, bool?, AbstractDownloadState, DateTime?)>(
-                "SELECT Id, Size, Hash, IsFailed, DownloadState, DownloadFinished FROM dbo.ArchiveDownloads WHERE Id = @id",
-                new {Id = id});
-            if (result == default)
-                return null;
-
-            return new ArchiveDownload
-            {
-                Id = result.Item1,
-                IsFailed = result.Item4,
-                DownloadFinished = result.Item6,
-                Archive = new Archive(result.Item5) {Size = result.Item2 ?? 0, Hash = result.Item3 ?? default}
-            };
-
+            return await Context.ArchiveDownloads.FirstOrDefaultAsync(a => a.Id == id);
         }
         
         public async Task<ArchiveDownload> GetArchiveDownload(string primaryKeyString, Hash hash, long size)
         {
-            await using var conn = await Open();
-            var result = await conn.QueryFirstOrDefaultAsync<(Guid, long?, Hash?, bool?, AbstractDownloadState, DateTime?)>(
-                "SELECT Id, Size, Hash, IsFailed, DownloadState, DownloadFinished FROM dbo.ArchiveDownloads WHERE PrimaryKeyString = @PrimaryKeyString AND Hash = @Hash AND Size = @Size",
-                new
-                {
-                    PrimaryKeyString = primaryKeyString,
-                    Hash = hash,
-                    Size = size
-                });
-            if (result == default)
-                return null;
-
-            return new ArchiveDownload
-            {
-                Id = result.Item1,
-                IsFailed = result.Item4,
-                DownloadFinished = result.Item6,
-                Archive = new Archive(result.Item5) {Size = result.Item2 ?? 0, Hash = result.Item3 ?? default}
-            };
-
+            return await Context.ArchiveDownloads.FirstOrDefaultAsync(a =>
+                a.PrimaryKeyString == primaryKeyString && a.Hash == hash && a.Size == size);
         }
 
         
         public async Task<ArchiveDownload> GetOrEnqueueArchive(Archive a)
         {
-            await using var conn = await Open();
-            await using var trans = await conn.BeginTransactionAsync();
-            var result = await conn.QueryFirstOrDefaultAsync<(Guid, long?, Hash?, bool?, AbstractDownloadState, DateTime?)>(
-                "SELECT Id, Size, Hash, IsFailed, DownloadState, DownloadFinished FROM dbo.ArchiveDownloads WHERE PrimaryKeyString = @PrimaryKeyString AND Hash = @Hash AND Size = @Size",
-                new
-                {
-                    PrimaryKeyString = a.State.PrimaryKeyString,
-                    Hash = a.Hash,
-                    Size = a.Size
-                }, trans);
-            if (result.Item1 != default)
+            await using var trans = await Context.Database.BeginTransactionAsync();
+
+            var existing = await GetArchiveDownload(a.State.PrimaryKeyString, a.Hash, a.Size);
+            if (existing != default)
             {
-                return new ArchiveDownload
-                {
-                    Id = result.Item1,
-                    IsFailed = result.Item4,
-                    DownloadFinished = result.Item6,
-                    Archive = new Archive(result.Item5) {Size = result.Item2 ?? 0, Hash = result.Item3 ?? default}
-                };
+                return existing;
             }
 
-            var id = Guid.NewGuid();
-            await conn.ExecuteAsync(
-                "INSERT INTO ArchiveDownloads (Id, PrimaryKeyString, Size, Hash, DownloadState, Downloader) VALUES (@Id, @PrimaryKeyString, @Size, @Hash, @DownloadState, @Downloader)",
-                new
-                {
-                    Id = id,
-                    PrimaryKeyString = a.State.PrimaryKeyString,
-                    Size = a.Size == 0 ? null : (long?)a.Size,
-                    Hash = a.Hash == default ? null : (Hash?)a.Hash,
-                    DownloadState = a.State,
-                    Downloader = AbstractDownloadState.TypeToName[a.State.GetType()]
-                }, trans);
-
+            var enqueued = await EnqueueDownload(a);
             await trans.CommitAsync();
-
-            return new ArchiveDownload {Id = id, Archive = a,};
-
+            return await GetArchiveDownload(enqueued);
         }
 
         public async Task<ArchiveDownload> GetNextPendingDownload(bool ignoreNexus = false)
         {
             await using var conn = await Open();
-            (Guid, long?, Hash?, AbstractDownloadState) result;
-
+           
             if (ignoreNexus)
             {
-                result = await conn.QueryFirstOrDefaultAsync<(Guid, long?, Hash?, AbstractDownloadState)>(
-                    "SELECT TOP(1) Id, Size, Hash, DownloadState FROM dbo.ArchiveDownloads WHERE DownloadFinished is NULL AND Downloader != 'NexusDownloader+State'");
-            }
-            else
-            {
-                result = await conn.QueryFirstOrDefaultAsync<(Guid, long?, Hash?, AbstractDownloadState)>(
-                    "SELECT TOP(1) Id, Size, Hash, DownloadState FROM dbo.ArchiveDownloads WHERE DownloadFinished is NULL");
+                return await Context.ArchiveDownloads.FirstOrDefaultAsync(a =>
+                    a.DownloadFinished == null && a.Downloader != "NexusDownloader+State");
             }
 
-            if (result == default)
-                return null;
-            
-            return new ArchiveDownload
-            {
-                Id = result.Item1,
-                Archive = new Archive(result.Item4) {Size = result.Item2 ?? 0, Hash = result.Item3 ?? default,},
-            };
+            return await Context.ArchiveDownloads.FirstOrDefaultAsync(a => a.DownloadFinished == null);
         }
         
         public async Task UpdatePendingDownload(ArchiveDownload ad)
         {
-            await using var conn = await Open();
-            await conn.ExecuteAsync(
-                "UPDATE dbo.ArchiveDownloads SET IsFailed = @IsFailed, DownloadFinished = @DownloadFinished, Hash = @Hash, Size = @Size, FailMessage = @FailMessage WHERE Id = @Id",
-                new
-                {
-                    Id = ad.Id,
-                    IsFailed = ad.IsFailed,
-                    DownloadFinished = ad.DownloadFinished,
-                    Size = ad.Archive.Size,
-                    Hash = ad.Archive.Hash,
-                    FailMessage = ad.FailMessage
-                });
+            var ar = await Context.ArchiveDownloads.FirstAsync(a => a.Id == ad.Id);
+            ar.IsFailed = ad.IsFailed;
+            ar.DownloadFinished = ad.DownloadFinished;
+            ar.Size = ad.Size;
+            ar.Hash = ad.Hash;
+            ar.FailMessage = ad.FailMessage;
+            await Context.SaveChangesAsync();
         }
 
         public async Task<int> EnqueueModListFilesForIndexing()
@@ -199,27 +125,21 @@ namespace Wabbajack.Server.DataLayer
 
         public async Task<List<Archive>> GetGameFiles(Game game, string version)
         {
-            await using var conn = await Open();
-            var files = (await conn.QueryAsync<(Hash, long, AbstractDownloadState)>(
-                $"SELECT Hash, Size, DownloadState FROM dbo.ArchiveDownloads WHERE PrimaryKeyString like 'GameFileSourceDownloader+State|{game}|{version}|%'"))
-                .Select(f => new Archive(f.Item3)
-                {
-                    Hash = f.Item1,
-                    Size = f.Item2
-                }).ToList();
-            return files;
+            return (await Context.ArchiveDownloads.Where(a =>
+                        a.PrimaryKeyString.StartsWith($"GameFileSourceDownloader+State|{game}|{version}|"))
+                    .ToListAsync())
+                .Select(f => new Archive(f.DownloadState) {Hash = f.Hash.Value, Size = f.Size ?? 0})
+                .ToList();
         }
 
-        public async Task<Archive[]> ResolveDownloadStatesByHash(Hash hash)
+        public async Task<List<Archive>> ResolveDownloadStatesByHash(Hash hash)
         {
-            await using var conn = await Open();
-            var files = (await conn.QueryAsync<(long, Hash, AbstractDownloadState)>(
-                    @"SELECT Size, Hash,  DownloadState from dbo.ArchiveDownloads WHERE Hash = @Hash AND IsFailed = 0 AND DownloadFinished IS NOT NULL ORDER BY DownloadFinished DESC",
-                    new {Hash = hash})
-                );
-            return files.Select(e =>
-                new Archive(e.Item3) {Size = e.Item1, Hash = e.Item2}
-            ).ToArray();
+            return (await Context.ArchiveDownloads
+                    .Where(a => a.Hash == hash && a.IsFailed == false && a.DownloadFinished != null)
+                    .OrderByDescending(a => a.DownloadFinished)
+                    .ToListAsync())
+                .Select(f => new Archive(f.DownloadState) {Hash = f.Hash.Value, Size = f.Size ?? 0})
+                .ToList();
         }
     }
 }

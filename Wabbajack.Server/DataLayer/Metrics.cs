@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
-using Wabbajack.Server.DTOs;
+using Microsoft.EntityFrameworkCore;
+using Wabbajack.Server.EF;
+using Wabbajack.VirtualFileSystem;
 
 namespace Wabbajack.Server.DataLayer
 {
@@ -11,25 +14,19 @@ namespace Wabbajack.Server.DataLayer
     {
         public async Task IngestMetric(Metric metric)
         {
-            await using var conn = await Open();
-            await conn.ExecuteAsync(@"INSERT INTO dbo.Metrics (Timestamp, Action, Subject, MetricsKey) VALUES (@Timestamp, @Action, @Subject, @MetricsKey)", metric);
+            Context.Add(metric);
+            await Context.SaveChangesAsync();
         }
         
         public async Task IngestAccess(string ip, string log)
         {
-            await using var conn = await Open();
-            await conn.ExecuteAsync(@"INSERT INTO dbo.AccessLog (Timestamp, Action, Ip) VALUES (@Timestamp, @Action, @Ip)", new
-            {
-                Timestamp = DateTime.UtcNow,
-                Ip = ip,
-                Action = log
-            });
+            Context.Add(new AccessLog {Timestamp = DateTime.UtcNow, Ip = ip, Action = log});
+            await Context.SaveChangesAsync();
         }
         
         public async Task<IEnumerable<AggregateMetric>> MetricsReport(string action)
         {
-            await using var conn = await Open();
-            return (await conn.QueryAsync<AggregateMetric>(@"
+            return await Context.AggregateMetrics.FromSqlRaw(@"
                         SELECT d.Date, d.GroupingSubject as Subject, Count(*) as Count FROM 
                         (select DISTINCT CONVERT(date, Timestamp) as Date, GroupingSubject, Action, MetricsKey from dbo.Metrics) m
                         RIGHT OUTER JOIN
@@ -46,8 +43,8 @@ namespace Wabbajack.Server.DataLayer
                         WHERE d.Action = @action
                         AND d.Date >= DATEADD(month, -1, GETUTCDATE())
                         group by d.Date, d.GroupingSubject, d.Action
-                        ORDER BY d.Date, d.GroupingSubject, d.Action", new {Action = action}))
-                .ToList();
+                        ORDER BY d.Date, d.GroupingSubject, d.Action", new SqlParameter("action", action))
+                .ToListAsync();
         }
 
         public async Task<List<(DateTime, string, string)>> FullTarReport(string key)
@@ -68,9 +65,7 @@ namespace Wabbajack.Server.DataLayer
 
         public async Task<bool> ValidMetricsKey(string metricsKey)
         {
-            await using var conn = await Open();
-            return (await conn.QueryAsync<string>("SELECT TOP(1) MetricsKey from Metrics Where MetricsKey = @MetricsKey",
-                new {MetricsKey = metricsKey})).FirstOrDefault() != null;
+            return await Context.Metrics.Where(m => m.MetricsKey == metricsKey).AnyAsync();
         }
 
 

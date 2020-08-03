@@ -70,7 +70,6 @@ namespace Wabbajack.Server
             services.AddSingleton<PatchBuilder>();
             services.AddSingleton<CDNMirrorList>();
             services.AddSingleton<NexusPermissionsUpdater>();
-            services.AddSingleton<ServerDBContext>();
             
             services.AddMvc();
             services.AddControllers()

@@ -165,7 +165,7 @@ namespace Wabbajack.Server.Services
                 if (patch.IsFailed == true)
                     return (archive, ArchiveStatus.InValid);
                 
-                var (_, status) = await ValidateArchive(data, patch.Dest.Archive);
+                var (_, status) = await ValidateArchive(data, patch.Dest.ToArchive());
                 if (status == ArchiveStatus.Valid)
                     return (archive, ArchiveStatus.Updated);
             }
@@ -186,8 +186,8 @@ namespace Wabbajack.Server.Services
             
             await _sql.AddPatch(new Patch {Src = srcDownload, Dest = destDownload});
             
-            _logger.Log(LogLevel.Information, $"Enqueued Patch from {srcDownload.Archive.Hash} to {destDownload.Archive.Hash}");
-            await _discord.Send(Channel.Ham, new DiscordMessage { Content = $"Enqueued Patch from {srcDownload.Archive.Hash} to {destDownload.Archive.Hash} to auto-heal `{modList.Links.MachineURL}`" });
+            _logger.Log(LogLevel.Information, $"Enqueued Patch from {srcDownload.Hash} to {destDownload.Hash}");
+            await _discord.Send(Channel.Ham, new DiscordMessage { Content = $"Enqueued Patch from {srcDownload.Hash} to {destDownload.Hash} to auto-heal `{modList.Links.MachineURL}`" });
 
             await upgrade.NewFile.DisposeAsync();
 

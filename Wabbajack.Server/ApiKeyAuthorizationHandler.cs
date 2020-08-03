@@ -13,6 +13,7 @@ using Wabbajack.Common;
 using Wabbajack.Common.Serialization.Json;
 using Wabbajack.Server.DataLayer;
 using Wabbajack.Server.DTOs;
+using Wabbajack.Server.EF;
 
 
 namespace Wabbajack.BuildServer

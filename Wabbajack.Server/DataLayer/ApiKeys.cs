@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Wabbajack.Common;
+using Wabbajack.Server.EF;
 
 namespace Wabbajack.Server.DataLayer
 {
@@ -11,24 +13,19 @@ namespace Wabbajack.Server.DataLayer
     {
         public async Task<string> LoginByApiKey(string key)
         {
-            await using var conn = await Open();
-            var result = await conn.QueryAsync<string>(@"SELECT Owner as Id FROM dbo.ApiKeys WHERE ApiKey = @ApiKey",
-                new {ApiKey = key});
-            return result.FirstOrDefault();
+            return await Context.ApiKeys.Where(a => a.Apikey1 == key).Select(a => a.Owner).FirstOrDefaultAsync();
         }
         
         public async Task<string> AddLogin(string name)
         {
             var key = NewAPIKey();
-            await using var conn = await Open();
 
+            Context.Add(new ApiKey {Apikey1 = key, Owner = name});
+            await Context.SaveChangesAsync();
 
-            await conn.ExecuteAsync("INSERT INTO dbo.ApiKeys (Owner, ApiKey) VALUES (@Owner, @ApiKey)",
-                new {Owner = name, ApiKey = key});
             return key;
         }
-        
-                
+
         public static string NewAPIKey()
         {
             var arr = new byte[128];
@@ -38,18 +35,12 @@ namespace Wabbajack.Server.DataLayer
         
         public async Task<IEnumerable<(string Owner, string Key)>> GetAllUserKeys()
         {
-            await using var conn = await Open();
-            var result = await conn.QueryAsync<(string Owner, string Key)>("SELECT Owner, ApiKey FROM dbo.ApiKeys");
-            return result;
+            return (await Context.ApiKeys.ToListAsync()).Select(a => (a.Owner, a.Apikey1));
         }
-
 
         public async Task<bool> IsTarKey(string metricsKey)
         {
-            await using var conn = await Open();
-            var result = await conn.QueryFirstOrDefaultAsync<string>(
-                "SELECT MetricsKey FROM TarKey WHERE MetricsKey = @MetricsKey", new {MetricsKey = metricsKey});
-            return result == metricsKey;
+            return await Context.TarKeys.AnyAsync(f => f.MetricsKey == metricsKey);
         }
     }
 }
