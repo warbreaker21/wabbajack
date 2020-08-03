@@ -13,6 +13,10 @@
 
     </PropertyGroup>
 
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DebugType>full</DebugType>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="CsvHelper" Version="15.0.5" />
         <PackageReference Include="Dapper" Version="2.0.35" />
@@ -28,6 +32,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Wabbajack.Common\Wabbajack.Common.csproj" />
       <ProjectReference Include="..\Wabbajack.Lib\Wabbajack.Lib.csproj" />
+      <ProjectReference Include="..\Wabbajack.Server.EF\Wabbajack.Server.EF.csproj" />
     </ItemGroup>
 
     <ItemGroup>

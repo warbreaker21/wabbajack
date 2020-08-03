@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Wabbajack.Common;
 using Wabbajack.Common.Serialization.Json;
 using Wabbajack.Lib.Downloaders;
@@ -151,6 +152,18 @@ namespace Wabbajack.BuildServer.Test
             Assert.Equal(ts, (long)ds.AsUnixTime());
             Assert.Equal(ts, (long)ts.AsUnixTime().AsUnixTime());
 
+        }
+
+        [Fact]
+        public async Task EFNexusDatesConvertProperty()
+        {
+            var now = DateTime.UtcNow;
+            var sql = Fixture.GetService<SqlService>();
+            await sql.AddNexusModInfo(Game.Morrowind, Int64.MaxValue - 3, now, new ModInfo() {name = "test"});
+            var info = await sql.Context.NexusModInfos.Where(m => m.Game == Game.Morrowind && m.ModId == Int64.MaxValue - 3 && m.LastChecked == now).FirstOrDefaultAsync();
+            Assert.NotNull(info);
+            Assert.Equal(now, info.LastChecked);
+            Assert.True(info.LastChecked.Kind == DateTimeKind.Utc);
         }
     }
 }

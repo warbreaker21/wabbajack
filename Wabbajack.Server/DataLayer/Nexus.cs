@@ -4,10 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Alphaleonis.Win32.Filesystem;
 using Dapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Wabbajack.Common;
 using Wabbajack.Lib.NexusApi;
 using Wabbajack.Lib.Validation;
+using Wabbajack.Server.EF;
 
 namespace Wabbajack.Server.DataLayer
 {
@@ -18,133 +21,84 @@ namespace Wabbajack.Server.DataLayer
     {
         public async Task<long> DeleteNexusModInfosUpdatedBeforeDate(Game game, long modId, DateTime date)
         {
-            await using var conn = await Open();
-            var deleted = await conn.ExecuteScalarAsync<long>(
-                @"DELETE FROM dbo.NexusModInfos WHERE Game = @Game AND ModID = @ModId AND LastChecked < @Date
-                      SELECT @@ROWCOUNT AS Deleted",
-                new {Game = game.MetaData().NexusGameId, ModId = modId, @Date = date});
-            return deleted;
+            var del = await Context.NexusModInfos.Where(mi => mi.Game == game && mi.ModId == modId && mi.LastChecked < date).ToListAsync();
+            Context.RemoveRange(del);
+            await Context.SaveChangesAsync();
+            return del.Count;
         }
         
         public async Task<long> DeleteNexusModFilesUpdatedBeforeDate(Game game, long modId, DateTime date)
         {
-            await using var conn = await Open();
-            var deleted = await conn.ExecuteScalarAsync<long>(
-                @"DELETE FROM dbo.NexusModFiles WHERE Game = @Game AND ModID = @ModId AND LastChecked < @Date
-                      SELECT @@ROWCOUNT AS Deleted",
-                new {Game = game.MetaData().NexusGameId, ModId = modId, Date = date});
-            return deleted;
+            var del = await Context.NexusModFiles.Where(mi => mi.Game == game && mi.ModId == modId && mi.LastChecked < date).ToListAsync();
+            Context.RemoveRange(del);
+            await Context.SaveChangesAsync();
+            return del.Count;
         }
         
-        public async Task<ModInfo> GetNexusModInfoString(Game game, long modId)
+        public async Task<ModInfo> GetNexusModInfo(Game game, long modId)
         {
-            await using var conn = await Open();
-            var result = await conn.QueryFirstOrDefaultAsync<string>(
-                "SELECT Data FROM dbo.NexusModInfos WHERE Game = @Game AND @ModId = ModId",
-                new {Game = game.MetaData().NexusGameId, ModId = modId});
-            return result == null ? null : JsonConvert.DeserializeObject<ModInfo>(result);
-        }
-        
-        public async Task AddNexusModInfo(Game game, long modId, DateTime lastCheckedUtc, ModInfo data)
-        {
-            await using var conn = await Open();
-
-            await conn.ExecuteAsync(
-                @"MERGE dbo.NexusModInfos AS Target
-                      USING (SELECT @Game Game, @ModId ModId, @LastChecked LastChecked, @Data Data) AS Source
-                      ON Target.Game = Source.Game AND Target.ModId = Source.ModId
-                      WHEN MATCHED THEN UPDATE SET Target.Data = @Data, Target.LastChecked = @LastChecked
-                      WHEN NOT MATCHED THEN INSERT (Game, ModId, LastChecked, Data) VALUES (@Game, @ModId, @LastChecked, @Data);",
-                new
-                {
-                    Game = game.MetaData().NexusGameId,
-                    ModId = modId,
-                    LastChecked = lastCheckedUtc,
-                    Data = JsonConvert.SerializeObject(data)
-                });
-            
-        }
-        
-        public async Task AddNexusModFiles(Game game, long modId, DateTime lastCheckedUtc, NexusApiClient.GetModFilesResponse data)
-        {
-            await using var conn = await Open();
-
-            await conn.ExecuteAsync(                
-                @"MERGE dbo.NexusModFiles AS Target
-                      USING (SELECT @Game Game, @ModId ModId, @LastChecked LastChecked, @Data Data) AS Source
-                      ON Target.Game = Source.Game AND Target.ModId = Source.ModId
-                      WHEN MATCHED THEN UPDATE SET Target.Data = @Data, Target.LastChecked = @LastChecked
-                      WHEN NOT MATCHED THEN INSERT (Game, ModId, LastChecked, Data) VALUES (@Game, @ModId, @LastChecked, @Data);",
-                new
-                {
-                    Game = game.MetaData().NexusGameId,
-                    ModId = modId,
-                    LastChecked = lastCheckedUtc,
-                    Data = JsonConvert.SerializeObject(data)
-                });
-        }
-        
-        public async Task AddNexusModFileSlow(Game game, long modId, long fileId, DateTime lastCheckedUtc)
-        {
-            await using var conn = await Open();
-
-            await conn.ExecuteAsync(                
-                @"MERGE dbo.NexusModFilesSlow AS Target
-                      USING (SELECT @GameId GameId, @ModId ModId, @LastChecked LastChecked, @FileId FileId) AS Source
-                      ON Target.GameId = Source.GameId AND Target.ModId = Source.ModId AND Target.FileId = Source.FileId
-                      WHEN MATCHED THEN UPDATE SET Target.LastChecked = @LastChecked
-                      WHEN NOT MATCHED THEN INSERT (GameId, ModId, LastChecked, FileId) VALUES (@GameId, @ModId, @LastChecked, @FileId);",
-                new
-                {
-                    GameId = game.MetaData().NexusGameId,
-                    ModId = modId,
-                    FileId = fileId,
-                    LastChecked = lastCheckedUtc,
-                });
+            var result = await Context.NexusModInfos
+                .FirstOrDefaultAsync(i => i.Game == game && i.ModId == modId);
+            return result?.Data;
         }
         
         public async Task<NexusApiClient.GetModFilesResponse> GetModFiles(Game game, long modId)
         {
-            await using var conn = await Open();
-            var result = await conn.QueryFirstOrDefaultAsync<string>(
-                "SELECT Data FROM dbo.NexusModFiles WHERE Game = @Game AND @ModId = ModId",
-                new {Game = game.MetaData().NexusGameId, ModId = modId});
-            return result == null ? null : JsonConvert.DeserializeObject<NexusApiClient.GetModFilesResponse>(result);
+            var result = await Context.NexusModFiles
+                .FirstOrDefaultAsync(i => i.Game == game && i.ModId == modId);
+            return result?.Data;
         }
+
+        
+        public async Task AddNexusModInfo(Game game, long modId, DateTime lastCheckedUtc, ModInfo data)
+        {
+            await using var trans = await Context.Database.BeginTransactionAsync();
+
+            Context.RemoveRange(await Context.NexusModInfos.Where(m => m.Game == game && m.ModId == modId).ToListAsync());
+            Context.Add(new NexusModInfo {Game = game, ModId = modId, LastChecked = lastCheckedUtc, Data = data});
+            await Context.SaveChangesAsync();
+            await trans.CommitAsync();
+        }
+        
+        public async Task AddNexusModFiles(Game game, long modId, DateTime lastCheckedUtc, NexusApiClient.GetModFilesResponse data)
+        {
+            await using var trans = await Context.Database.BeginTransactionAsync();
+
+            Context.RemoveRange(await Context.NexusModFiles.Where(m => m.Game == game && m.ModId == modId).ToListAsync());
+            Context.Add(new NexusModFile {Game = game, ModId = modId, LastChecked = lastCheckedUtc, Data = data});
+            await Context.SaveChangesAsync();
+            await trans.CommitAsync();
+        }
+        
 
         public async Task PurgeNexusCache(long modId)
         {
             await using var conn = await Open();
-            await conn.ExecuteAsync("DELETE FROM dbo.NexusModFiles WHERE ModId = @ModId", new {ModId = modId});
-            await conn.ExecuteAsync("DELETE FROM dbo.NexusModInfos WHERE ModId = @ModId", new {ModId = modId});
+            Context.RemoveRange(await Context.NexusModInfos.Where(mi => mi.ModId == modId).ToListAsync());
+            Context.RemoveRange(await Context.NexusModFiles.Where(mi => mi.ModId == modId).ToListAsync());
+            await Context.SaveChangesAsync();
         }
 
         public async Task<Dictionary<(Game, long), HTMLInterface.PermissionValue>> GetNexusPermissions()
         {
-            await using var conn = await Open();
-
-            var results =
-                await conn.QueryAsync<(int, long, int)>("SELECT NexusGameID, ModID, Permissions FROM NexusModPermissions");
-            return results.ToDictionary(f => (GameRegistry.ByNexusID[f.Item1], f.Item2),
-                f => (HTMLInterface.PermissionValue)f.Item3);
+            return await Context.NexusModPermissions.ToDictionaryAsync(e => (e.NexusGameId, e.ModId), e => e.Permissions);
         }
 
         public async Task SetNexusPermissions(IEnumerable<(Game, long, HTMLInterface.PermissionValue)> permissions)
         {
-            await using var conn = await Open();
-            var tx = await conn.BeginTransactionAsync();
-
-            await conn.ExecuteAsync("DELETE FROM NexusModPermissions", transaction:tx);
-
-            foreach (var (game, modId, perm) in permissions)
+            await using var trans = await Context.Database.BeginTransactionAsync();
+            
+            Context.RemoveRange(await Context.NexusModPermissions.ToListAsync());
+            
+            await Context.AddRangeAsync(permissions.Select(p => new NexusModPermission
             {
-                await conn.ExecuteAsync(
-                    "INSERT INTO NexusModPermissions (NexusGameID, ModID, Permissions) VALUES (@NexusGameID, @ModID, @Permissions)",
-                    new {NexusGameID = game.MetaData().NexusGameId, ModID = modId, Permissions = (int)perm}, tx);
-            }
+                NexusGameId = p.Item1,
+                ModId = p.Item2,
+                Permissions = p.Item3
+            }));
 
-            await tx.CommitAsync();
-
+            await Context.SaveChangesAsync();
+            await trans.CommitAsync();
         }
     }
 }

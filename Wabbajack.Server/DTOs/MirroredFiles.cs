@@ -1,7 +1,7 @@
 ﻿namespace Wabbajack.Server.DTOs
 {
-    public partial class SqlService
+    /*public partial class SqlService
     {
         
-    }
+    }*/
 }

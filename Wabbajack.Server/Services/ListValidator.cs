@@ -230,7 +230,7 @@ namespace Wabbajack.Server.Services
         public async Task<ArchiveStatus> FastNexusModStats(NexusDownloader.State ns)
         {
             // Check if some other thread has added them
-            var mod = await _sql.GetNexusModInfoString(ns.Game, ns.ModID);
+            var mod = await _sql.GetNexusModInfo(ns.Game, ns.ModID);
             var files = await _sql.GetModFiles(ns.Game, ns.ModID);
 
             if (mod == null || files == null)
@@ -239,7 +239,7 @@ namespace Wabbajack.Server.Services
                 using var lck = await _lock.WaitAsync();
                 
                 // Check again
-                mod = await _sql.GetNexusModInfoString(ns.Game, ns.ModID);
+                mod = await _sql.GetNexusModInfo(ns.Game, ns.ModID);
                 files = await _sql.GetModFiles(ns.Game, ns.ModID);
 
                 if (mod == null || files == null)

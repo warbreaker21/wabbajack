@@ -48,7 +48,7 @@ namespace Wabbajack.BuildServer.Controllers
         public async Task<ModInfo> GetModInfo(string GameName, long ModId)
         {
             var game = GameRegistry.GetByFuzzyName(GameName).Game;
-            var result = await _sql.GetNexusModInfoString(game, ModId);
+            var result = await _sql.GetNexusModInfo(game, ModId);
             
             string method = "CACHED";
             if (result == null)

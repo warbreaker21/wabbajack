@@ -55,7 +55,8 @@ namespace Wabbajack.BuildServer.Test
                     "WabbajackSettings:JobRunner=false",
                     "WabbajackSettings:RunBackEndJobs=false",
                     "WabbajackSettings:RunFrontEndJobs=false",
-                    "WabbajackSettinss:DisableNexusForwarding=true"
+                    "WabbajackSettinss:DisableNexusForwarding=true",
+                    $"ConnectionStrings:DefaultConnection={PublicConnStr}"
                 }, true);
             _host = builder.Build();
             _token = new CancellationTokenSource();

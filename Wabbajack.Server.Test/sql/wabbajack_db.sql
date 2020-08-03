@@ -675,7 +675,7 @@ CREATE TABLE [dbo].[MirroredArchives](
 [Created] [DateTime] NOT NULL,
 [Uploaded] [DateTime] NULL,
 [Rationale] nvarchar(max) not NULL
-CONSTRAINT [PK_NexusModPermissions] PRIMARY KEY CLUSTERED
+CONSTRAINT [PK_MirroredArchives] PRIMARY KEY CLUSTERED
     (
      [Hash] ASC
         )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]

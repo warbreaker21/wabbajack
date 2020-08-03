@@ -14,6 +14,7 @@ using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Wabbajack.BuildServer;
 using Wabbajack.Server.DataLayer;
+using Wabbajack.Server.EF;
 using Wabbajack.Server.Services;
 
 namespace Wabbajack.Server
@@ -69,6 +70,7 @@ namespace Wabbajack.Server
             services.AddSingleton<PatchBuilder>();
             services.AddSingleton<CDNMirrorList>();
             services.AddSingleton<NexusPermissionsUpdater>();
+            services.AddSingleton<ServerDBContext>();
             
             services.AddMvc();
             services.AddControllers()
