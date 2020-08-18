@@ -110,6 +110,8 @@ namespace Compression.BSA
 
         private string GetName()
         {
+            if (!BSA.HasFileNames)
+                throw new InvalidDataException("Can't get folder names when the archive doesn't have folder names");
             var names = _nameBlock.Names.Value;
             return names[_overallIndex].ReadStringTerm(BSA.HeaderType);
         }
@@ -158,7 +160,7 @@ namespace Compression.BSA
 
         public void Dump(Action<string> print)
         {
-            print($"Name: {Name}");
+            print($"Name: {Name} {Folder.Hash}/{Hash}");
             print($"Offset: {Offset}");
             print($"Raw Size: {RawSize}");
             print($"Index: {_index}");

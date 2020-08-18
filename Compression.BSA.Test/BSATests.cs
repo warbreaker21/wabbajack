@@ -151,7 +151,46 @@ namespace Compression.BSA.Test
                         Assert.Equal(pair.ai.Size, pair.bi.Size);
                         Assert.Equal(await GetData(pair.ai), await GetData(pair.bi));
                     });
+
+                if (game == Game.Skyrim)
+                {
+                    await RecompressWithoutFolders(bsa);
+                }
             }
+        }
+
+        private async Task RecompressWithoutFolders(AbsolutePath bsa)
+        {
+            var stripped = new TempFile();
+            var originalBSA = await BSADispatch.OpenRead(bsa);
+            var state = (BSAStateObject)originalBSA.State;
+            state.ArchiveFlags ^= (int)ArchiveFlags.HasFolderNames;
+
+            await using (var builder = await BSABuilder.Create(state, bsa.Size))
+            {
+                foreach (var file in originalBSA.Files)
+                {
+                    var ms = new MemoryStream();
+                    await file.CopyDataTo(ms);
+                    ms.Position = 0;
+                    await builder.AddFile(file.State, ms);
+                }
+
+                await builder.Build(stripped.Path);
+            }
+
+            var strippedState = await BSADispatch.OpenRead(stripped.Path);
+            var oldFiles = originalBSA.Files.ToArray();
+            var newFiles = strippedState.Files.ToArray();
+            for (var idx = 0; idx < originalBSA.Files.Count(); idx++)
+            {
+                var oldState = (BSAFileStateObject)oldFiles[idx].State;
+                var newState = (BSAFileStateObject)newFiles[idx].State;
+                Assert.Equal(oldState.FileHash, newState.FileHash);
+                Assert.Equal(oldState.FolderHash, newState.FolderHash);
+            }
+
+
         }
 
         private static async ValueTask<byte[]> GetData(IFile pairAi)
