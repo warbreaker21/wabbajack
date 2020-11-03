@@ -28,6 +28,7 @@ namespace Wabbajack.Server.Services
 
         public override async Task<int> Execute()
         {
+            using var queue = new WorkQueue();
             _nexusClient ??= await NexusApiClient.Get();
             int count = 0;
 
@@ -68,7 +69,7 @@ namespace Wabbajack.Server.Services
                     await DownloadDispatcher.PrepareAll(new[] {nextDownload.Archive.State});
 
                     await using var tempPath = new TempFile();
-                    if (!await nextDownload.Archive.State.Download(nextDownload.Archive, tempPath.Path))
+                    if (!await nextDownload.Archive.State.Download(nextDownload.Archive, tempPath.Path, queue))
                     {
                         _logger.LogError($"Downloader returned false for {nextDownload.Archive.State.PrimaryKeyString}");
                         await nextDownload.Fail(_sql, "Downloader returned false");

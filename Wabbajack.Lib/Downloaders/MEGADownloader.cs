@@ -168,7 +168,7 @@ namespace Wabbajack.Lib.Downloaders
                 }
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 await MegaLogin();
 
@@ -194,9 +194,9 @@ namespace Wabbajack.Lib.Downloaders
                 }
             }
 
-            public override Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver)
+            public override Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver, WorkQueue queue)
             {
-                return ServerFindUpgrade(a);
+                return ServerFindUpgrade(a, queue);
             }
             
             public override async Task<bool> ValidateUpgrade(Hash srcHash, AbstractDownloadState newArchiveState)

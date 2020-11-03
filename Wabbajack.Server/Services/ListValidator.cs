@@ -164,6 +164,7 @@ namespace Wabbajack.Server.Services
         private AsyncLock _healLock = new AsyncLock();
         private async Task<(Archive, ArchiveStatus)> TryToHeal(ValidationData data, Archive archive, ModlistMetadata modList)
         {
+            using var queue = new WorkQueue();
             var srcDownload = await _sql.GetArchiveDownload(archive.State.PrimaryKeyString, archive.Hash, archive.Size);
             if (srcDownload == null || srcDownload.IsFailed == true)
             {
@@ -203,7 +204,7 @@ namespace Wabbajack.Server.Services
                 return _archives.TryGetPath(foundArchive.Archive.Hash, out var path) ? path : default;
             };
             
-            var upgrade = await DownloadDispatcher.FindUpgrade(archive, resolver);
+            var upgrade = await DownloadDispatcher.FindUpgrade(archive, queue, resolver);
             
             
             if (upgrade == default)

@@ -86,11 +86,11 @@ namespace Wabbajack.Lib.Downloaders
                 return Url == "<TESTING>" || whitelist.AllowedPrefixes.Any(p => Url.StartsWith(p));
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 var (uri, client) = await Utils.Log(await ManuallyDownloadFile.Create(this)).Task;
                 var state = new HTTPDownloader.State(uri.ToString()) { Client = client };
-                return await state.Download(a, destination);
+                return await state.Download(a, destination, queue);
             }
 
             public override async Task<bool> Verify(Archive a)

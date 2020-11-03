@@ -181,7 +181,7 @@ namespace Wabbajack.Lib.Downloaders
                 return true;
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 string url;
                 try
@@ -197,7 +197,7 @@ namespace Wabbajack.Lib.Downloaders
 
                 Utils.Log($"Downloading Nexus Archive - {a.Name} - {Game} - {ModID} - {FileID}");
 
-                return await new HTTPDownloader.State(url).Download(a, destination);
+                return await new HTTPDownloader.State(url).Download(a, destination, queue);
             }
 
             public override async Task<bool> Verify(Archive a)
@@ -237,7 +237,7 @@ namespace Wabbajack.Lib.Downloaders
                 return new[] {"[General]", $"gameName={Game.MetaData().MO2ArchiveName}", $"modID={ModID}", $"fileID={FileID}"};
             }
 
-            public override async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver)
+            public override async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver, WorkQueue queue)
             {
                 var client = await NexusApiClient.Get();
 
@@ -276,7 +276,7 @@ namespace Wabbajack.Lib.Downloaders
 
                 var tempFile = new TempFile();
                  
-                await newArchive.State.Download(newArchive, tempFile.Path);
+                await newArchive.State.Download(newArchive, tempFile.Path, queue);
 
                 newArchive.Size = tempFile.Path.Size;
                 newArchive.Hash = await tempFile.Path.FileHashAsync();

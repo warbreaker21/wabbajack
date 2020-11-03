@@ -36,11 +36,11 @@ namespace Wabbajack.Lib.Downloaders
                 return whitelist.AllowedPrefixes.Any(p => Url.StartsWith(p));
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 var result = await Resolve();
                 if (result == null) return false;
-                return await result.Download(a, destination);
+                return await result.Download(a, destination, queue);
             }
 
             public override async Task<bool> Verify(Archive a)

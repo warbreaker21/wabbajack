@@ -69,7 +69,7 @@ namespace Wabbajack.Lib.Downloaders
                 return true;
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 await using var src = await SourcePath.OpenRead();
                 await using var dest = await destination.Create();

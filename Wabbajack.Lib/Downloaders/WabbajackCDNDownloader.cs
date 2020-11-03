@@ -69,7 +69,7 @@ namespace Wabbajack.Lib.Downloaders
                 return true;
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 destination.Parent.CreateDirectory();
                 var definition = await GetDefinition();
@@ -80,7 +80,6 @@ namespace Wabbajack.Lib.Downloaders
                 if (!DomainRemaps.ContainsKey(Url.Host)) 
                     client.Headers.Add(("Host", Url.Host));
                 
-                using var queue = new WorkQueue();
                 await definition.Parts.PMap(queue, async part =>
                 {
                     Utils.Status($"Downloading {a.Name}", Percent.FactoryPutInRange(definition.Parts.Length - part.Index, definition.Parts.Length));

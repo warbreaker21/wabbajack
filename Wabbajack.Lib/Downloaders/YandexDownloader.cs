@@ -48,7 +48,7 @@ namespace Wabbajack.Lib.Downloaders
                 return whitelist.AllowedPrefixes.Any(p => url.StartsWith(p));
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 using var driver = await WebAutomation.Driver.Create();
                 var tcs = new TaskCompletionSource<Uri?>();
@@ -56,7 +56,7 @@ namespace Wabbajack.Lib.Downloaders
                 await driver.NavigateTo(Url);
                 await driver.EvalJavascript("document.getElementsByClassName(\"download-button\")[0].click();");
                 var uri = await tcs.Task;
-                return await new HTTPDownloader.State(uri!.ToString()).Download(destination);
+                return await new HTTPDownloader.State(uri!.ToString()).Download(destination, queue);
             }
 
             public override async Task<bool> Verify(Archive archive)

@@ -100,9 +100,9 @@ namespace Wabbajack.Lib.Downloaders
             Success
         }
 
-        public static async Task<DownloadResult> DownloadWithPossibleUpgrade(Archive archive, AbsolutePath destination)
+        public static async Task<DownloadResult> DownloadWithPossibleUpgrade(Archive archive, AbsolutePath destination, WorkQueue queue)
         {
-            if (await Download(archive, destination))
+            if (await Download(archive, destination, queue))
             {
                 var downloadedHash = await destination.FileHashCachedAsync();
                 if (downloadedHash == archive.Hash || archive.Hash == default) 
@@ -110,7 +110,7 @@ namespace Wabbajack.Lib.Downloaders
             }
 
             
-            if (await DownloadFromMirror(archive, destination))
+            if (await DownloadFromMirror(archive, destination, queue))
             {
                 await destination.FileHashCachedAsync();
                 return DownloadResult.Mirror;
@@ -124,10 +124,10 @@ namespace Wabbajack.Lib.Downloaders
 
             Utils.Log($"Trying to find solution to broken download for {archive.Name}");
             
-            var result = await FindUpgrade(archive);
+            var result = await FindUpgrade(archive, queue);
             if (result == default)
             {
-                result = await AbstractDownloadState.ServerFindUpgrade(archive);
+                result = await AbstractDownloadState.ServerFindUpgrade(archive, queue);
                 if (result == default)
                 {
                     Utils.Log(
@@ -171,14 +171,14 @@ namespace Wabbajack.Lib.Downloaders
             return DownloadResult.Update;
         }
         
-        public static async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>>? downloadResolver = null)
+        public static async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, WorkQueue queue, Func<Archive, Task<AbsolutePath>>? downloadResolver = null)
         {
             downloadResolver ??= async a => default;
-            return await a.State.FindUpgrade(a, downloadResolver);
+            return await a.State.FindUpgrade(a, downloadResolver, queue);
         }
 
         
-        private static async Task<bool> DownloadFromMirror(Archive archive, AbsolutePath destination)
+        private static async Task<bool> DownloadFromMirror(Archive archive, AbsolutePath destination, WorkQueue queue)
         {
             try
             {
@@ -191,7 +191,7 @@ namespace Wabbajack.Lib.Downloaders
                     {
                         Hash = archive.Hash, Size = archive.Size, Name = archive.Name
                     };
-                return await Download(newArchive, destination);
+                return await Download(newArchive, destination, queue);
             }
             catch (Exception)
             {
@@ -199,11 +199,11 @@ namespace Wabbajack.Lib.Downloaders
             }
         }
 
-        private static async Task<bool> Download(Archive archive, AbsolutePath destination)
+        private static async Task<bool> Download(Archive archive, AbsolutePath destination, WorkQueue queue)
         {
             try
             {
-                var result =  await archive.State.Download(archive, destination);
+                var result =  await archive.State.Download(archive, destination, queue);
                 if (!result) return false;
 
                 if (!archive.Hash.IsValid) return true;

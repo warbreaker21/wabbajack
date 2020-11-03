@@ -50,10 +50,10 @@ namespace Wabbajack.Lib.Downloaders
                 return whitelist.GoogleIDs.Contains(Id);
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 var state = await ToHttpState();
-                return await state.Download(a, destination);
+                return await state.Download(a, destination, queue);
             }
 
             private async Task<HTTPDownloader.State> ToHttpState()

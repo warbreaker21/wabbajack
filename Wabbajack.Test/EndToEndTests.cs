@@ -102,7 +102,7 @@ namespace Wabbajack.Test
             if (!src.Exists)
             {
                 var state = DownloadDispatcher.ResolveArchive(url);
-                await state.Download(new Archive(state: null!) { Name = "Unknown"}, src);
+                await state.Download(new Archive(state: null!) { Name = "Unknown"}, src, Queue);
             }
 
             utils.DownloadsPath.CreateDirectory();
@@ -117,6 +117,7 @@ namespace Wabbajack.Test
 
         private async Task<(AbsolutePath Download, AbsolutePath ModFolder)> DownloadAndInstall(Game game, int modId, string modName)
         {
+            using var queue = new WorkQueue();
             await utils.AddMod(modName);
             var client = await NexusApiClient.Get();
             var resp = await client.GetModFiles(game, modId);
@@ -137,7 +138,7 @@ namespace Wabbajack.Test
             {
 
                 var state = (AbstractDownloadState)await DownloadDispatcher.ResolveArchive(ini.LoadIniString());
-                await state.Download(src);
+                await state.Download(src, queue);
             }
             
             utils.DownloadsPath.CreateDirectory();

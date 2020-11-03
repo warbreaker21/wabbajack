@@ -135,7 +135,7 @@ namespace Wabbajack.Lib.Downloaders
                 return true;
             }
 
-            public override async Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
                 var (isValid, istream) = await ResolveDownloadStream(a, false);
                 if (!isValid) return false;
@@ -244,7 +244,7 @@ namespace Wabbajack.Lib.Downloaders
                 return DownloadDispatcher.GetInstance<TDownloader>();
             }
 
-            public override async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver)
+            public override async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver, WorkQueue queue)
             {
                 var files = await GetFilesInGroup();
                 var nl = new Levenshtein();
@@ -257,7 +257,7 @@ namespace Wabbajack.Lib.Downloaders
 
                     var tmp = new TempFile();
                     await DownloadDispatcher.PrepareAll(new[] {newFile.State});
-                    if (await newFile.State.Download(newFile, tmp.Path))
+                    if (await newFile.State.Download(newFile, tmp.Path, queue))
                     {
                         newFile.Size = tmp.Path.Size;
                         newFile.Hash = await tmp.Path.FileHashAsync();

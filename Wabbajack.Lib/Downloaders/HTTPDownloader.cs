@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using Wabbajack.Common;
 using Wabbajack.Common.Exceptions;
 using Wabbajack.Common.Serialization.Json;
+using Wabbajack.Lib.Http;
 using Wabbajack.Lib.Validation;
 
 
@@ -69,9 +70,11 @@ namespace Wabbajack.Lib.Downloaders
                 return whitelist.AllowedPrefixes.Any(p => Url.StartsWith(p));
             }
 
-            public override Task<bool> Download(Archive a, AbsolutePath destination)
+            public override async Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue)
             {
-                return DoDownload(a, destination, true);
+                var client = await GetClient();
+                var downloader = new Downloader(client, new Uri(Url),a.Size, queue, destination);
+                return await downloader.Download();
             }
 
             public async Task<bool> DoDownload(Archive a, AbsolutePath destination, bool download)
@@ -83,16 +86,7 @@ namespace Wabbajack.Lib.Downloaders
 
                 using (var fs = download ? await destination.Create() : null)
                 {
-                    var client = Client ?? await ClientAPI.GetClient();
-                    client.Headers.Add(("User-Agent", Consts.UserAgent));
-
-                    foreach (var header in Headers)
-                    {
-                        var idx = header.IndexOf(':');
-                        var k = header.Substring(0, idx);
-                        var v = header.Substring(idx + 1);
-                        client.Headers.Add((k, v));
-                    }
+                    var client = await GetClient();
 
                     long totalRead = 0;
                     var bufferSize = 1024 * 32;
@@ -188,9 +182,34 @@ TOP:
                 }
             }
 
+            private async Task<Client> GetClient()
+            {
+                var client = Client ?? await ClientAPI.GetClient();
+                client.Headers.Add(("User-Agent", Consts.UserAgent));
+
+                foreach (var header in Headers)
+                {
+                    var idx = header.IndexOf(':');
+                    var k = header.Substring(0, idx);
+                    var v = header.Substring(idx + 1);
+                    client.Headers.Add((k, v));
+                }
+
+                return client;
+            }
+
             public override async Task<bool> Verify(Archive a)
             {
-                return await DoDownload(a, ((RelativePath)"").RelativeToEntryPoint(), false);
+                var client = await GetClient();
+                try
+                {
+                    var downloader = await Downloader.GetDownloadHeaders(client, new Uri(Url));
+                    return true;
+                }
+                catch (Exception _)
+                {
+                    return false;
+                }
             }
 
             public override IDownloader GetDownloader()
@@ -214,7 +233,7 @@ TOP:
 
             }
 
-            public override async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver)
+            public override async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver, WorkQueue queue)
             {
                 var tmpFile = new TempFile();
                 
@@ -224,7 +243,7 @@ TOP:
 
                 try
                 {
-                    if (!await Download(newArchive, tmpFile.Path))
+                    if (!await Download(newArchive, tmpFile.Path, queue))
                         return default;
                 }
                 catch (HttpException ex)

@@ -76,13 +76,15 @@ namespace Wabbajack.Lib.Downloaders
         /// <summary>
         /// Downloads this file to the given destination location
         /// </summary>
+        /// <param name="a"></param>
         /// <param name="destination"></param>
-        public abstract Task<bool> Download(Archive a, AbsolutePath destination);
+        /// <param name="queue"></param>
+        public abstract Task<bool> Download(Archive a, AbsolutePath destination, WorkQueue queue);
 
-        public async Task<bool> Download(AbsolutePath destination)
+        public async Task<bool> Download(AbsolutePath destination, WorkQueue queue)
         {
             destination.Parent.CreateDirectory();
-            return await Download(new Archive(this) {Name = (string)destination.FileName}, destination);
+            return await Download(new Archive(this) {Name = (string)destination.FileName}, destination, queue);
         }
 
         /// <summary>
@@ -101,7 +103,7 @@ namespace Wabbajack.Lib.Downloaders
             return string.Join("\n", GetMetaIni());
         }
 
-        public static async Task<(Archive? Archive, TempFile NewFile)> ServerFindUpgrade(Archive a)
+        public static async Task<(Archive? Archive, TempFile NewFile)> ServerFindUpgrade(Archive a, WorkQueue queue)
         {
             var alternatives = await ClientAPI.GetModUpgrades(a.Hash);
             if (alternatives == default)
@@ -129,7 +131,7 @@ namespace Wabbajack.Lib.Downloaders
             if (selected == null) return default;
 
             var tmpFile = new TempFile();
-            if (await selected.State.Download(selected, tmpFile.Path))
+            if (await selected.State.Download(selected, tmpFile.Path, queue))
             {
                 return (selected, tmpFile);
             }
@@ -139,9 +141,9 @@ namespace Wabbajack.Lib.Downloaders
 
         }
 
-        public virtual async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver)
+        public virtual async Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver, WorkQueue queue)
         {
-            return await ServerFindUpgrade(a);
+            return await ServerFindUpgrade(a, queue);
         }
 
         public virtual async Task<bool> ServerValidateUpgrade(Hash srcHash, AbstractDownloadState newArchiveState)

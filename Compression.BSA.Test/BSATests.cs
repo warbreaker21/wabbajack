@@ -50,6 +50,7 @@ namespace Compression.BSA.Test
 
         private static async Task<AbsolutePath> DownloadMod(Game game, int mod)
         {
+            using var queue = new WorkQueue();
             using var client = await NexusApiClient.Get();
             var results = await client.GetModFiles(game, mod);
             var file = results.files.FirstOrDefault(f => f.is_primary) ??
@@ -64,7 +65,7 @@ namespace Compression.BSA.Test
                 Game = game,
                 FileID = file.file_id
             };
-            await state.Download(src);
+            await state.Download(src, queue);
             return src;
         }
 

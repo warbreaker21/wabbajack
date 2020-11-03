@@ -48,7 +48,7 @@ namespace Wabbajack.Server.Test
             };
             
             var file2 = new TempFile();
-            await DownloadDispatcher.DownloadWithPossibleUpgrade(archive, file2.Path);
+            await DownloadDispatcher.DownloadWithPossibleUpgrade(archive, file2.Path, Queue);
         }
 
         [Fact]

@@ -205,7 +205,7 @@ namespace Wabbajack.Lib
                 foreach (var a in missing.Where(a => a.State.GetType() == typeof(ManualDownloader.State)))
                 {
                     var outputPath = DownloadFolder.Combine(a.Name);
-                    await a.State.Download(a, outputPath);
+                    await a.State.Download(a, outputPath, Queue);
                 }
             }
 
@@ -228,20 +228,20 @@ namespace Wabbajack.Lib
                         }
                     }
 
-                    return await DownloadArchive(archive, download, outputPath);
+                    return await DownloadArchive(archive, download, Queue, outputPath);
                 });
             
             DesiredThreads.OnNext(DiskThreads);
 
         }
 
-        public async Task<bool> DownloadArchive(Archive archive, bool download, AbsolutePath? destination = null)
+        public async Task<bool> DownloadArchive(Archive archive, bool download, WorkQueue queue, AbsolutePath? destination = null)
         {
             try
             {
                 destination ??= DownloadFolder.Combine(archive.Name);
                 
-                var result = await DownloadDispatcher.DownloadWithPossibleUpgrade(archive, destination.Value);
+                var result = await DownloadDispatcher.DownloadWithPossibleUpgrade(archive, destination.Value, queue);
                 if (result == DownloadDispatcher.DownloadResult.Update)
                 {
                     await destination.Value.MoveToAsync(destination.Value.Parent.Combine(archive.Hash.ToHex()));

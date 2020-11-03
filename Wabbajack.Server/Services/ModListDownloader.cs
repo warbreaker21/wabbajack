@@ -60,6 +60,7 @@ namespace Wabbajack.Server.Services
 
         public async Task<int> CheckForNewLists()
         {
+            using var queue = new WorkQueue();
             int downloaded = 0;
             var lists = (await ModlistMetadata.LoadFromGithub())
                 .Concat(await ModlistMetadata.LoadUnlistedFromGithub()).ToList();
@@ -87,7 +88,7 @@ namespace Wabbajack.Server.Services
                         }
 
                         downloaded += 1;
-                        await state.Download(new Archive(state) {Name = $"{list.Links.MachineURL}.wabbajack"}, tf.Path);
+                        await state.Download(new Archive(state) {Name = $"{list.Links.MachineURL}.wabbajack"}, tf.Path, queue);
                         var hash = await tf.Path.FileHashAsync();
                         if (hash != list.DownloadMetadata.Hash)
                         {

@@ -193,7 +193,7 @@ namespace Wabbajack
                             new Archive(state: null!)
                             {
                                 Name = Metadata.Title, Size = Metadata.DownloadMetadata?.Size ?? 0
-                            }, Location);
+                            }, Location, queue);
                         Utils.Log($"Done downloading {Metadata.Links.MachineURL}");
 
                         // Want to rehash to current file, even if failed?

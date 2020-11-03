@@ -71,11 +71,12 @@ namespace Wabbajack.Test
         [Fact]
         public async Task DownloadResume()
         {
+            using var queue = new WorkQueue();
             await using var testFile = new TempFile();
             using var server = new CrappyRandomServer();
             var state = new HTTPDownloader.State($"http://localhost:{server.Port}/foo");
 
-            await state.Download(testFile.Path);
+            await state.Download(testFile.Path, queue);
 
             Assert.Equal(server.Data, await testFile.Path.ReadAllBytesAsync());
 

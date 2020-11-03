@@ -237,6 +237,7 @@ namespace Wabbajack.VirtualFileSystem.Test
 
         public static async Task<AbsolutePath> DownloadNexusFile(Game game, int mod, NexusFileInfo file)
         {
+            using var queue = new WorkQueue();
             var src = StagingFolder.Combine(file.file_name);
 
             if (src.Exists) return src;
@@ -247,7 +248,7 @@ namespace Wabbajack.VirtualFileSystem.Test
                 Game = game,
                 FileID = file.file_id
             };
-            await state.Download(src);
+            await state.Download(src, queue);
             return src;
         }
 

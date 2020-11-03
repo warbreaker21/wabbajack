@@ -12,7 +12,7 @@ namespace Wabbajack.Lib.Downloaders
         /// </summary>
         /// <param name="a"></param>
         /// <returns></returns>
-        public Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver);
+        public Task<(Archive? Archive, TempFile NewFile)> FindUpgrade(Archive a, Func<Archive, Task<AbsolutePath>> downloadResolver, WorkQueue queue);
 
         Task<bool> ValidateUpgrade(Hash srcHash, AbstractDownloadState newArchiveState);
     }

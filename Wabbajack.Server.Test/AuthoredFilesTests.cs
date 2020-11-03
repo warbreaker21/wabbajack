@@ -39,7 +39,7 @@ namespace Wabbajack.BuildServer.Test
             var state = await DownloadDispatcher.Infer(uri);
             Assert.IsType<WabbajackCDNDownloader.State>(state);
 
-            await state.Download(new Archive(state) {Name = (string)file.Path.FileName}, file.Path);
+            await state.Download(new Archive(state) {Name = (string)file.Path.FileName}, file.Path, _queue);
             Assert.Equal(originalHash, await file.Path.FileHashAsync());
 
         }
@@ -59,7 +59,7 @@ namespace Wabbajack.BuildServer.Test
             await DownloadDispatcher.PrepareAll(new[] {state});
             await using var tmp = new TempFile();
             
-            await Assert.ThrowsAsync<HttpException>(async () => await state.Download(new Archive(state) {Name = "test"}, tmp.Path));
+            await Assert.ThrowsAsync<HttpException>(async () => await state.Download(new Archive(state) {Name = "test"}, tmp.Path, _queue));
             var downloader = DownloadDispatcher.GetInstance<WabbajackCDNDownloader>();
             Assert.Null(downloader.Mirrors); // Now works through a host remap
         }

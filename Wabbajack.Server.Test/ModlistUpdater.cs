@@ -129,7 +129,7 @@ namespace Wabbajack.Server.Test
 
 
             await using var tempFile = new TempFile();
-            var pendingRequest = DownloadDispatcher.DownloadWithPossibleUpgrade(oldArchive, tempFile.Path);
+            var pendingRequest = DownloadDispatcher.DownloadWithPossibleUpgrade(oldArchive, tempFile.Path, _queue);
 
             for (var times = 0; await downloader.Execute() == 0 && times < 40; times ++)
             {
